@@ -1,0 +1,28 @@
+{
+  "blueprints": [
+    {
+      "id": "start_basic",
+      "nameKey": "blueprint_start_basic",
+      "nodes": [
+        { "x": 0, "y": 0, "anchored": true },
+        { "x": 3, "y": 0, "anchored": true },
+        { "x": 6, "y": 0, "anchored": true },
+        { "x": 1.5, "y": -2.6 },
+        { "x": 4.5, "y": -2.6 }
+      ],
+      "beams": [
+        { "a": 0, "b": 1, "material": "wood" },
+        { "a": 1, "b": 2, "material": "wood" },
+        { "a": 0, "b": 3, "material": "wood" },
+        { "a": 1, "b": 3, "material": "wood" },
+        { "a": 1, "b": 4, "material": "wood" },
+        { "a": 2, "b": 4, "material": "wood" },
+        { "a": 3, "b": 4, "material": "wood" }
+      ],
+      "devices": [
+        { "type": "reactor", "beam": 6, "t": 0.5, "sideNegative": true }
+      ],
+      "tags": ["start"]
+    }
+  ]
+}

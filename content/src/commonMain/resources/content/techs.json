@@ -1,0 +1,9 @@
+{
+  "techs": [
+    {
+      "id": "workshop",
+      "nameKey": "tech_workshop",
+      "unlocks": ["mortar"]
+    }
+  ]
+}

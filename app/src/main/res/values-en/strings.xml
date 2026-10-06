@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_tagline">Build forts. Hold the reactor.</string>
+    <string name="title_tap_to_start">Tap to start</string>
+    <string name="title_version">Version %1$s</string>
+    <string name="title_placeholder_note">Preview – gameplay coming soon</string>
+</resources>

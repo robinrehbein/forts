@@ -1,0 +1,25 @@
+{
+  "weapons": [
+    {
+      "id": "mortar",
+      "nameKey": "weapon_mortar",
+      "projectile": "shell",
+      "mode": "ballistic",
+      "damage": 0,
+      "splashRadius": 2.5,
+      "splashDamage": 120,
+      "minRange": 25,
+      "maxRange": 110,
+      "reloadSeconds": 6,
+      "shotMetal": 15,
+      "shotEnergy": 30,
+      "muzzleSpeed": 33,
+      "explosionImpulse": 1100,
+      "recoilImpulse": 260,
+      "projectileRadius": 0.14,
+      "lifetimeSeconds": 10,
+      "defaultAimDeg": 52,
+      "defaultPower": 0.75
+    }
+  ]
+}

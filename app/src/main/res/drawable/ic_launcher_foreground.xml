@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Platzhalter-Icon: genietete Stahlplatte mit "B" und Rost-Akzent (Stil-Bibel-Palette). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stahlplatte -->
+    <path
+        android:fillColor="#2B3440"
+        android:strokeColor="#8A97A8"
+        android:strokeWidth="1.5"
+        android:pathData="M30,25 H78 Q83,25 83,30 V78 Q83,83 78,83 H30 Q25,83 25,78 V30 Q25,25 30,25 Z" />
+    <!-- Lichtkante oben -->
+    <path
+        android:fillColor="#4A5564"
+        android:pathData="M30,27 H78 Q81,27 81,30 V31 H27 V30 Q27,27 30,27 Z" />
+    <!-- Rost-Akzent unten -->
+    <path
+        android:fillColor="#D2622A"
+        android:pathData="M27,74 H81 V78 Q81,81 78,81 H30 Q27,81 27,78 Z" />
+    <!-- Buchstabe B -->
+    <path
+        android:fillColor="#E9EEF4"
+        android:pathData="M40,35 H59 A8.5,8.5 0 0 1 59,52 H40 Z M40,52 H61 A10,10 0 0 1 61,72 H40 Z" />
+    <!-- Innenräume des B -->
+    <path
+        android:fillColor="#2B3440"
+        android:pathData="M47,40 H58 A3.5,3.5 0 0 1 58,47 H47 Z M47,57 H60 A5,5 0 0 1 60,67 H47 Z" />
+    <!-- Nieten -->
+    <path
+        android:fillColor="#8A97A8"
+        android:pathData="M30,35 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 M74,35 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 M30,69 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 M74,69 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+</vector>

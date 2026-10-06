@@ -1,0 +1,18 @@
+{
+  "materials": [
+    {
+      "id": "wood",
+      "nameKey": "material_wood",
+      "costPerM": 4,
+      "hp": 100,
+      "density": 15,
+      "stiffness": 6000000,
+      "tensionLimit": 0.05,
+      "compressionLimit": 0.035,
+      "damageFactor": 1.0,
+      "thickness": 0.32,
+      "flammable": true,
+      "damping": 0.10
+    }
+  ]
+}

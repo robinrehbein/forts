@@ -1,0 +1,44 @@
+{
+  "devices": [
+    {
+      "id": "reactor",
+      "nameKey": "device_reactor",
+      "category": "reactor",
+      "hp": 300,
+      "mass": 400,
+      "hitRadius": 1.2,
+      "mountOffset": 1.2,
+      "energyPerSec": 2,
+      "unique": true
+    },
+    {
+      "id": "mortar",
+      "nameKey": "device_mortar",
+      "category": "weapon",
+      "costMetal": 150,
+      "costEnergy": 40,
+      "hp": 90,
+      "mass": 110,
+      "hitRadius": 0.7,
+      "mountOffset": 0.55,
+      "pivotOffset": 0.62,
+      "buildSeconds": 4,
+      "weapon": "mortar",
+      "requiresTech": "workshop",
+      "barrelLength": 1.05
+    },
+    {
+      "id": "workshop",
+      "nameKey": "device_workshop",
+      "category": "tech",
+      "costMetal": 120,
+      "costEnergy": 40,
+      "hp": 120,
+      "mass": 140,
+      "hitRadius": 1.1,
+      "mountOffset": 1.0,
+      "buildSeconds": 30,
+      "grantsTech": "workshop"
+    }
+  ]
+}

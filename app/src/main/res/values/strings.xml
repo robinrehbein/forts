@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Arbeitstitel: identisch mit de.bollwerk.engine.GameInfo.TITLE -->
+    <string name="app_name" translatable="false">Bollwerk</string>
+    <string name="title_wordmark" translatable="false">BOLLWERK</string>
+    <string name="title_tagline">Festungen bauen. Reaktor halten.</string>
+    <string name="title_tap_to_start">Tippen zum Starten</string>
+    <string name="title_version">Version %1$s</string>
+    <string name="title_placeholder_note">Vorschau – Spielinhalte folgen</string>
+</resources>
