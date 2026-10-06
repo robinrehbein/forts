@@ -140,6 +140,12 @@ data class WeaponDef(
     /** Explosionsschaden im Zentrum (Mörser 120, Kanone 30). */
     val splashDamage: Float = 0f,
     val minRange: Float = 0f,
+    /**
+     * Reichweite in m. **Hitscan/Strahl:** harte Grenze (Strahl endet dort). **Ballistisch:** nur ein
+     * Anzeige-/KI-Wert (Reichweitenring, größte sinnvolle Zielentfernung), die Simulation erzwingt ihn nicht;
+     * das Geschoss fliegt bis zum Treffer, bis [lifetimeSeconds] oder bis zu den Kill-Grenzen. Der Validator
+     * verlangt, dass er die physikalische Reichweite `v²/(g·gravityScale)` nicht übersteigt.
+     */
     val maxRange: Float,
     val reloadSeconds: Float,
     val shotMetal: Float = 0f,
@@ -163,13 +169,22 @@ data class WeaponDef(
     /** Schadensfaktor gegen Geräte. */
     val deviceDamageFactor: Float = 1f,
     val projectileRadius: Float = 0.1f,
-    /** Maximale Flugzeit in s. */
+    /**
+     * Maximale Flugzeit in s (ballistisch > 0; muss für den steilsten Schuss bei voller Kraft samt Fall in
+     * tiefere Karten reichen, sonst verschwinden Geschosse mitten im Flug – der Validator prüft das).
+     */
     val lifetimeSeconds: Float = 8f,
     /** Laser: Dauer des Strahls in s. */
     val beamSeconds: Float = 0f,
-    /** Start-Zielwinkel in Grad für den linken Spieler (Prototyp: MG/Kanone 12, Mörser 52). */
+    /** Start-Zielwinkel in Grad für den linken Spieler (Prototyp `buildFort`: MG 0, Kanone 13, Mörser 52). */
     val defaultAimDeg: Float = 50f,
     val defaultPower: Float = 0.75f,
+    /** Faktor auf die Erdbeschleunigung für das Geschoss (Brandrakete 0,6; Hitscan/Strahl 0 = ignoriert). */
+    val gravityScale: Float = 1f,
+    /** Kleinster Elevationswinkel in Grad, von der Waagerechten zur Feindseite (positiv = nach oben). */
+    val minAimDeg: Float = -90f,
+    /** Größter Elevationswinkel in Grad. */
+    val maxAimDeg: Float = 90f,
 )
 
 /**
@@ -199,7 +214,17 @@ data class BpBeam(val a: Int, val b: Int, val material: String)
 @Serializable
 data class BpDevice(val type: String, val beam: Int, val t: Float = 0.5f, val sideNegative: Boolean = false)
 
-/** Bauvorlage: Startfestung oder KI-Bauplan. */
+/**
+ * Bauschritt eines KI-Plans: [phase] (siehe [ContentValidator.PHASES], in dieser Reihenfolge) mit Indizes in
+ * `beams`/`devices` der Bauvorlage. Erst Balken, dann Geräte, jeweils in Listenreihenfolge.
+ */
+@Serializable
+data class BpStep(val phase: String, val beams: List<Int> = emptyList(), val devices: List<Int> = emptyList())
+
+/**
+ * Bauvorlage: Startfestung (Tag `start`) oder KI-Bauplan (Tags `ai` und `easy`/`normal`/`hard`).
+ * [steps] ordnen bei KI-Plänen die Balken/Geräte zu einer Bau-Reihenfolge (leer bei Startfestungen).
+ */
 @Serializable
 data class BlueprintDef(
     val id: String,
@@ -208,6 +233,7 @@ data class BlueprintDef(
     val beams: List<BpBeam>,
     val devices: List<BpDevice> = emptyList(),
     val tags: List<String> = emptyList(),
+    val steps: List<BpStep> = emptyList(),
 )
 
 /** Punkt in Welt-Metern (y nach unten). */

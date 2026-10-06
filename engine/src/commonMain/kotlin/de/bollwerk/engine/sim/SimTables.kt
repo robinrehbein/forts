@@ -155,6 +155,17 @@ data class WeaponProps(
     /** Start-Zielwinkel für Spieler 0 (nach rechts); für Spieler auf der rechten Seite gespiegelt (π − a). */
     val defaultAimRad: Float,
     val defaultPower: Float,
+    /**
+     * Faktor auf `SimConfig.gravity` für das Geschoss (Brandrakete < 1; Hitscan/Strahl ignorieren ihn).
+     * Additiv ergänzt (WP1): Simulation ([de.bollwerk.engine.math.Ballistics]), Zielvorschau und KI müssen ihn gemeinsam beachten.
+     */
+    val gravityScale: Float = 1f,
+    /**
+     * Zulässiger Elevationsbereich in Bogenmaß, gemessen von der Waagerechten zur **Feindseite** (positiv = nach oben);
+     * für Spieler auf der rechten Seite spiegelt ihn der Aufrufer (Zielwinkel π − a). Additiv ergänzt (WP1).
+     */
+    val minAimRad: Float = -1.5707964f,
+    val maxAimRad: Float = 1.5707964f,
 )
 
 /**
@@ -178,6 +189,13 @@ data class BlueprintBeam(val a: Int, val b: Int, val material: Int)
 /** Gerät einer Bauvorlage auf Balken [beam] (Index in [BlueprintProps.beams]). */
 data class BlueprintDevice(val type: Int, val beam: Int, val t: Float, val sideNegative: Boolean)
 
+/**
+ * Bauschritt einer KI-Bauvorlage (WP1, additiv): [phase] (`economy`, `workshop`, `walls`, `armour`, `weapons`,
+ * `factory`, `reactor_cover`), Indizes in [BlueprintProps.beams] und [BlueprintProps.devices]. Innerhalb eines
+ * Schritts werden erst Balken, dann Geräte gebaut, jeweils in Listenreihenfolge.
+ */
+data class BlueprintStep(val phase: String, val beams: List<Int>, val devices: List<Int>)
+
 /** Bauvorlage (Startfestung, KI-Bauplan). */
 data class BlueprintProps(
     val key: String,
@@ -185,4 +203,6 @@ data class BlueprintProps(
     val beams: List<BlueprintBeam>,
     val devices: List<BlueprintDevice>,
     val tags: List<String> = emptyList(),
+    /** Geordnete Bauschritte (nur KI-Pläne; leer bei Startfestungen). */
+    val steps: List<BlueprintStep> = emptyList(),
 )

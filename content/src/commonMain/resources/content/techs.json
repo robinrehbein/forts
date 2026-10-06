@@ -3,7 +3,23 @@
     {
       "id": "workshop",
       "nameKey": "tech_workshop",
-      "unlocks": ["mortar"]
+      "unlocks": ["mortar", "cannon"]
+    },
+    {
+      "id": "armoury",
+      "nameKey": "tech_armoury",
+      "unlocks": ["mg", "sniper"]
+    },
+    {
+      "id": "upgrade_center",
+      "nameKey": "tech_upgrade_center",
+      "unlocks": ["armour"]
+    },
+    {
+      "id": "factory",
+      "nameKey": "tech_factory",
+      "requires": ["upgrade_center"],
+      "unlocks": ["rocket", "laser"]
     }
   ]
 }

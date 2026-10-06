@@ -12,7 +12,7 @@ enum class BreakCause {
     FIRE,
     /** Trümmer-Zerfall, Kill-Grenzen, unter dem Boden (still, nur Staub). */
     DECAY,
-    /** Vom Spieler abgerissen. */
+    /** Vom Spieler abgerissen (still: keine Splitter/Funken, Geräte darauf ohne `DeviceDestroyed`). */
     DELETED,
 }
 

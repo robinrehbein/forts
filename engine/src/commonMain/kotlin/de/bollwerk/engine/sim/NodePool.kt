@@ -111,7 +111,8 @@ class NodePool(initialCapacity: Int = 256) : Pool(initialCapacity), NodeView {
             beamCountOf[beams.b[j]]++
             total += 2
         }
-        if (adjBeam.size < total) adjBeam = IntArray(total)
+        // mit Reserve wachsen: bei Einstürzen kommt pro Bruch ein Balken hinzu (keine Allokation je Neuaufbau)
+        if (adjBeam.size < total) adjBeam = IntArray(if (total > adjBeam.size * 2) total else adjBeam.size * 2)
         var acc = 0
         for (i in 0 until n) { adjStart[i] = acc; acc += beamCountOf[i] }
         adjStart[n] = acc

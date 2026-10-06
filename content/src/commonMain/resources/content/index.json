@@ -1,11 +1,12 @@
 {
-  "version": "0.1.0-wp0",
+  "version": "0.2.0-wp1",
   "files": [
     "materials.json",
     "weapons.json",
     "devices.json",
     "techs.json",
     "blueprints.json",
-    "maps/schlucht.json"
+    "maps/01_schlucht.json",
+    "maps/02_huegel.json"
   ]
 }

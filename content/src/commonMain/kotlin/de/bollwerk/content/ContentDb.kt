@@ -67,9 +67,12 @@ class ContentDb(
      * Werten **oder** Reihenfolge ändert den Wert; Replays und Lockstep vergleichen ihn.
      */
     val fingerprint: Long by lazy {
-        val pack = ContentPack(materials, devices, weapons, techs, maps, blueprints)
+        val pack = toPack()
         fnv1a(ContentLoader.canonicalJson.encodeToString(ContentPack.serializer(), pack).encodeToByteArray())
     }
+
+    /** Alle Listen als [ContentPack] (Validator, Fingerabdruck, Tests). */
+    fun toPack(): ContentPack = ContentPack(materials, devices, weapons, techs, maps, blueprints)
 
     fun blueprintIndex(id: String): Int = blueprintIdx[id] ?: throw ContentException("unknown blueprint '$id'")
     fun blueprint(id: String): BlueprintDef = blueprints[blueprintIndex(id)]

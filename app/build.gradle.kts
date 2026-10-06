@@ -40,6 +40,10 @@ android {
         resources.excludes += setOf("META-INF/{AL2.0,LGPL2.1}", "META-INF/LICENSE*")
     }
 
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
+
     lint {
         abortOnError = true
         warningsAsErrors = false
@@ -63,6 +67,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
 
@@ -73,4 +78,13 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+}
+
+dependencies {
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

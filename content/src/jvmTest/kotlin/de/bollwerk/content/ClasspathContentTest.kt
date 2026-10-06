@@ -30,7 +30,7 @@ class ClasspathContentTest {
         val map = db.map("schlucht")
         assertEquals(120f, map.width)
         assertEquals(2, map.plateaus.size)
-        assertEquals(5, map.foundations.count { it.owner == 0 })
+        assertEquals(7, map.foundations.count { it.owner == 0 })
         assertEquals(listOf(34f, 34f), map.baseY)
         assertEquals(2, map.startForts.size)
         assertTrue(db.blueprint(map.startForts[0].blueprint).devices.any { it.type == "reactor" })

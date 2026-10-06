@@ -45,6 +45,8 @@ data class SimConfig(
     val strainDamage: Float = 40f,
     /** Bruchhälften sind nur möglich, wenn die Ruhelänge größer ist (Prototyp 0,8 m). */
     val minSplitLength: Float = 0.8f,
+    /** Knarzen (RENDER-Flag `BeamPool.creaking`) ab diesem Anteil der Grenzdehnung (Stil-Bibel 80 %). */
+    val creakRatio: Float = 0.8f,
     /** Lagergrenzen Wirtschaft. */
     val metalCap: Float = 1000f,
     val energyCap: Float = 400f,
@@ -132,6 +134,12 @@ data class DebrisConfig(
     val impactDamageMax: Float = 90f,
     /** Sperrzeit eines getroffenen Balkens (0,25 s). */
     val hitCooldownTicks: Int = 15,
+    /** Staub-Fx (`FxEvent.DebrisLanded`) nur, wenn der Knoten im Vortick schneller war (m/s, Prototyp 3). */
+    val landedFxMinSpeed: Float = 3f,
+    /** Zusätzlicher Trefferradius eines Trümmerknotens zur halben Balkendicke (m, Prototyp 0,2). */
+    val impactRadius: Float = 0.2f,
+    /** Harte Altersgrenze: Trümmer werden spätestens nach so vielen Ticks still entfernt (40 s). */
+    val maxAgeTicks: Int = 2400,
 )
 
 /** Türen (Prototyp `doorFor`, `doorTick`). */

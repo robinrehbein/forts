@@ -73,13 +73,24 @@ class BeamPool(initialCapacity: Int = 256) : Pool(initialCapacity), BeamView {
     var texOffset = FloatArray(initialCapacity); private set
     /** DERIVED/Scratch. XPBD-Lagrange-Akkumulator pro Substep. */
     var lambda = FloatArray(initialCapacity); private set
+    /** RENDER. Balken über `SimConfig.creakRatio` seiner Grenzdehnung (Knarzen-Animation), je Tick vom Dehnungs-System gesetzt. */
+    var creaking = BooleanArray(initialCapacity); private set
     /**
-     * DERIVED. Gauss-Seidel-Lösungsreihenfolge (Balken-IDs, `0 until solveCount`): stabil sortiert von unten
-     * nach oben (größtes mittleres y zuerst), Gleichstand nach Balken-ID. Vom Physik-System bei Topologie-
-     * änderung neu aufgebaut.
+     * DERIVED. Gauss-Seidel-Lösungsreihenfolge (Balken-IDs, `0 until solveCount`): alle lebenden Balken mit
+     * mindestens einem beweglichen Knoten in **aufsteigender Balken-ID** (feste Index-Reihenfolge, nur aus
+     * PERSISTENT-Daten ableitbar, damit ein Restore/Rollback bitgleich weiterrechnet). Vom Physik-System
+     * (`de.bollwerk.engine.physics`) bei Topologieänderung neu aufgebaut.
      */
     var solveOrder = IntArray(initialCapacity); private set
     var solveCount: Int = 0
+
+    /**
+     * DERIVED. Kennung des Physik-Caches (`de.bollwerk.engine.physics.PhysicsWorld`), für den [solveOrder] und die
+     * Material-Caches zuletzt aufgebaut wurden, und dessen Aufbau-Nummer. Der Zustand verweist auf den Cache, nie
+     * umgekehrt. Nicht serialisiert/gehasht; `null` (z. B. nach Restore) erzwingt einen Neuaufbau.
+     */
+    var solveCacheOwner: Any? = null
+    var solveCacheEpoch: Int = 0
 
     /**
      * Legt einen Balken zwischen den Knoten [nodeA] und [nodeB] an.
@@ -97,6 +108,7 @@ class BeamPool(initialCapacity: Int = 256) : Pool(initialCapacity), BeamView {
         hitCooldownTicks[id] = 0; doorTimerTicks[id] = 0
         this.texOffset[id] = if (texOffset.isNaN()) (uidOf[id] * 2.371f) % 4f else texOffset
         lambda[id] = 0f
+        creaking[id] = false
         return id
     }
 
@@ -109,6 +121,7 @@ class BeamPool(initialCapacity: Int = 256) : Pool(initialCapacity), BeamView {
         hitCooldownTicks = hitCooldownTicks.copyOf(newCapacity); doorTimerTicks = doorTimerTicks.copyOf(newCapacity)
         texOffset = texOffset.copyOf(newCapacity)
         lambda = lambda.copyOf(newCapacity)
+        creaking = creaking.copyOf(newCapacity)
         solveOrder = solveOrder.copyOf(newCapacity)
     }
 

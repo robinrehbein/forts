@@ -1,0 +1,86 @@
+package de.bollwerk.app.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import de.bollwerk.app.AppViewModel
+import de.bollwerk.app.nav.Screen
+import de.bollwerk.app.ui.game.GameScreen
+import de.bollwerk.app.ui.game.GameViewModel
+import de.bollwerk.app.ui.menu.MainMenuScreen
+import de.bollwerk.app.ui.menu.MainMenuViewModel
+import de.bollwerk.app.ui.result.ResultScreen
+import de.bollwerk.app.ui.result.ResultViewModel
+import de.bollwerk.app.ui.settings.SettingsScreen
+import de.bollwerk.app.ui.settings.SettingsViewModel
+import de.bollwerk.app.ui.setup.SetupScreen
+import de.bollwerk.app.ui.setup.SetupViewModel
+import de.bollwerk.app.ui.theme.BollwerkTheme
+
+/**
+ * Wurzel-Composable: zeigt das oberste Ziel des [de.bollwerk.app.nav.Navigator]. Jeder Eintrag hat einen
+ * eigenen ViewModel-Speicher (Lebensdauer = Zeit auf dem Rückstapel).
+ */
+@Composable
+fun AppRoot(app: AppViewModel) {
+    BollwerkTheme {
+        val stack by app.navigator.stack.collectAsStateWithLifecycle()
+        val entry = stack.last()
+        val nav = app.navigator
+        val graph = app.graph
+        // Der gelesene Stapel kann hinter dem Navigator herhinken; dann ist der Speicher des Eintrags schon
+        // weg und der nächste Stand zeichnet neu (nie einen Speicher in der Komposition anlegen).
+        val owner = app.ownerFor(entry.id)
+        if (owner != null) CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+            when (val screen = entry.screen) {
+                Screen.MainMenu -> {
+                    val vm = viewModel<MainMenuViewModel>(
+                        factory = viewModelFactory { initializer { MainMenuViewModel(nav, graph.settings, entry.id) } },
+                    )
+                    val state by vm.state.collectAsStateWithLifecycle()
+                    BackHandler(enabled = state.dialog != null) { vm.onDismissDialog() }
+                    MainMenuScreen(vm)
+                }
+                is Screen.Setup -> {
+                    val vm = viewModel<SetupViewModel>(
+                        factory = viewModelFactory {
+                            initializer { SetupViewModel(screen.mode, graph.settings, nav, entry.id, graph.seedSource) }
+                        },
+                    )
+                    BackHandler { vm.onBack() }
+                    SetupScreen(vm)
+                }
+                Screen.Settings -> {
+                    val vm = settingsViewModel(app)
+                    BackHandler { nav.back(entry.id) }
+                    SettingsScreen(vm, onBack = { nav.back(entry.id) })
+                }
+                is Screen.Game -> {
+                    val vm = viewModel<GameViewModel>(
+                        factory = viewModelFactory { initializer { GameViewModel(screen.config, nav, entryId = entry.id) } },
+                    )
+                    GameScreen(vm, settingsViewModel(app))
+                }
+                is Screen.Result -> {
+                    val vm = viewModel<ResultViewModel>(
+                        factory = viewModelFactory {
+                            initializer { ResultViewModel(screen.result, nav, entry.id, graph.seedSource) }
+                        },
+                    )
+                    BackHandler { nav.back(entry.id) }
+                    ResultScreen(vm)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun settingsViewModel(app: AppViewModel): SettingsViewModel =
+    viewModel(factory = viewModelFactory { initializer { SettingsViewModel(app.graph.settings) } })

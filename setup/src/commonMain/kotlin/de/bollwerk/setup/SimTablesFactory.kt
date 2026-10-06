@@ -9,6 +9,7 @@ import de.bollwerk.engine.sim.BlueprintBeam
 import de.bollwerk.engine.sim.BlueprintDevice
 import de.bollwerk.engine.sim.BlueprintNode
 import de.bollwerk.engine.sim.BlueprintProps
+import de.bollwerk.engine.sim.BlueprintStep
 import de.bollwerk.engine.sim.DeviceProps
 import de.bollwerk.engine.sim.DeviceRole
 import de.bollwerk.engine.sim.MaterialProps
@@ -21,7 +22,9 @@ import de.bollwerk.engine.sim.WeaponProps
 
 /**
  * Brücke `ContentDb` → [SimTables] (gleiche Index-Reihenfolge). Sekunden werden in Ticks, Grad in
- * Bogenmaß umgerechnet. Jedes neue Content-Feld, das die Simulation braucht, wird hier abgebildet.
+ * Bogenmaß umgerechnet. Jedes neue Content-Feld, das die Simulation braucht, wird hier abgebildet;
+ * bewusst nicht abgebildete Felder stehen in `MappingCompletenessTest` mit Begründung (der Test schlägt
+ * fehl, sobald ein Feld weder abgebildet noch dort aufgeführt ist).
  */
 object SimTablesFactory {
     fun build(db: ContentDb, config: SimConfig = SimConfig.DEFAULT): SimTables {
@@ -103,6 +106,9 @@ object SimTablesFactory {
                 beamTicks = config.secondsToTicks(w.beamSeconds),
                 defaultAimRad = w.defaultAimDeg * FloatMath.DEG_TO_RAD,
                 defaultPower = w.defaultPower,
+                gravityScale = w.gravityScale,
+                minAimRad = w.minAimDeg * FloatMath.DEG_TO_RAD,
+                maxAimRad = w.maxAimDeg * FloatMath.DEG_TO_RAD,
             )
         }
         val techs = db.techs.mapIndexed { i, t -> TechProps(key = t.id, requires = db.techRequires[i].toList()) }
@@ -113,6 +119,7 @@ object SimTablesFactory {
                 beams = bp.beams.map { BlueprintBeam(it.a, it.b, db.materialIndex(it.material)) },
                 devices = bp.devices.map { BlueprintDevice(db.deviceIndex(it.type), it.beam, it.t, it.sideNegative) },
                 tags = bp.tags,
+                steps = bp.steps.map { BlueprintStep(it.phase, it.beams, it.devices) },
             )
         }
         return SimTables(materials, devices, weapons, techs, blueprints)

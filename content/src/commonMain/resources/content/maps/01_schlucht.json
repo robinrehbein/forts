@@ -29,19 +29,23 @@
         { "owner": 0, "x": 30, "y": 34 },
         { "owner": 0, "x": 33, "y": 34 },
         { "owner": 0, "x": 36, "y": 34 },
+        { "owner": 0, "x": 18, "y": 34 },
+        { "owner": 0, "x": 15, "y": 34 },
         { "owner": 1, "x": 96, "y": 34 },
         { "owner": 1, "x": 93, "y": 34 },
         { "owner": 1, "x": 90, "y": 34 },
         { "owner": 1, "x": 87, "y": 34 },
-        { "owner": 1, "x": 84, "y": 34 }
+        { "owner": 1, "x": 84, "y": 34 },
+        { "owner": 1, "x": 102, "y": 34 },
+        { "owner": 1, "x": 105, "y": 34 }
       ],
       "buildZones": [
         { "owner": 0, "x0": 0, "x1": 39 },
         { "owner": 1, "x0": 81, "x1": 120 }
       ],
       "startForts": [
-        { "owner": 0, "blueprint": "start_basic", "originX": 24 },
-        { "owner": 1, "blueprint": "start_basic", "originX": 96, "mirror": true }
+        { "owner": 0, "blueprint": "fort_standard", "originX": 24 },
+        { "owner": 1, "blueprint": "fort_standard", "originX": 96, "mirror": true }
       ],
       "baseY": [34, 34],
       "windMin": -6,

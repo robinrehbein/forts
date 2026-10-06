@@ -5,16 +5,23 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import de.bollwerk.app.ui.TitleScreen
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import de.bollwerk.app.ui.AppRoot
 
 /**
- * Einzige Activity. Querformat (Manifest), immersives Vollbild; Inhalt komplett in Compose.
- * Navigation (Menüs, Gefecht-Setup, Spiel) folgt mit WP10/WP9.
+ * Einzige Activity. Querformat (Manifest), immersives Edge-to-Edge-Vollbild; Inhalt komplett in Compose.
+ * Navigation und ViewModels: siehe [AppViewModel] und [AppRoot].
  */
 class MainActivity : ComponentActivity() {
+    private val appViewModel: AppViewModel by viewModels {
+        viewModelFactory { initializer { AppViewModel((application as BollwerkApp).graph) } }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -25,7 +32,7 @@ class MainActivity : ComponentActivity() {
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         hideSystemBars()
-        setContent { TitleScreen() }
+        setContent { AppRoot(appViewModel) }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

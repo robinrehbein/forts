@@ -28,6 +28,15 @@ object ContentLoader {
      * @param version Content-Version (nur Anzeige; maßgeblich für Replays ist [ContentDb.fingerprint]).
      */
     fun fromJson(texts: Map<String, String>, version: String = "dev"): ContentDb {
+        val p = mergePack(texts)
+        return ContentDb(version, p.materials, p.devices, p.weapons, p.techs, p.maps, p.blueprints)
+    }
+
+    /**
+     * Führt alle Dateien (nach Schlüssel sortiert) zu einem [ContentPack] zusammen, **ohne** Querverweise
+     * aufzulösen. Grundlage für [ContentValidator], der auch kaputte Daten beschreiben können muss.
+     */
+    fun mergePack(texts: Map<String, String>): ContentPack {
         val mats = ArrayList<MaterialDef>()
         val devs = ArrayList<DeviceDef>()
         val weps = ArrayList<WeaponDef>()
@@ -45,7 +54,7 @@ object ContentLoader {
             mats += pack.materials; devs += pack.devices; weps += pack.weapons
             techs += pack.techs; maps += pack.maps; blueprints += pack.blueprints
         }
-        return ContentDb(version, mats, devs, weps, techs, maps, blueprints)
+        return ContentPack(mats, devs, weps, techs, maps, blueprints)
     }
 
     /** Parst `content/index.json`. */

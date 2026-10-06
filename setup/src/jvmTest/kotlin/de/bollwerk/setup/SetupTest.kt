@@ -28,6 +28,8 @@ class SetupTest {
         val wood = t.materials[db.materialIndex("wood")]
         assertEquals("wood", wood.key)
         assertEquals(0.035f, wood.compressionLimit)
+        assertEquals(Float.POSITIVE_INFINITY, t.materials[db.materialIndex("rope")].compressionLimit)
+        assertEquals(db.techIndex("upgrade_center"), t.materials[db.materialIndex("armour")].requiredTech)
         val mortarWeapon = t.weapons[db.weaponIndex("mortar")]
         assertEquals(360, mortarWeapon.reloadTicks) // 6 s · 60
         assertEquals(WeaponMode.BALLISTIC, mortarWeapon.mode)
@@ -39,7 +41,7 @@ class SetupTest {
         assertEquals(1.05f, mortarDevice.barrelLength)
         assertTrue(t.devices[db.deviceIndex("reactor")].unique)
         assertEquals(1800, t.devices[db.deviceIndex("workshop")].buildTicks)
-        assertEquals("start_basic", t.blueprints.single().key)
+        assertEquals(db.blueprints.map { it.id }, t.blueprints.map { it.key })
     }
 
     @Test
@@ -63,8 +65,10 @@ class SetupTest {
             assertTrue(s.devices.isAlive(r), "player ${p.id} needs a reactor")
             assertEquals(400f, p.metal); assertEquals(200f, p.energy)
         }
-        // Startfestung nutzt die Fundamente (keine doppelten Knoten auf 24/27/30 bzw. 96/93/90)
-        assertEquals(10 + 2 * 2, s.nodes.aliveCount)
+        // Startfestung nutzt die Fundamente (keine doppelten Knoten auf 24..36 bzw. 96..84): alle Fundamente der Karte
+        // (je Spieler 5 der Startfestung + 2 für den KI-Anbau) + je Fort alle Knoten ohne die 5 Fundamente
+        val fort = db.blueprint("fort_standard")
+        assertEquals(db.map(setup.mapId).foundations.size + 2 * (fort.nodes.size - 5), s.nodes.aliveCount)
         assertEquals(StateHash.of(s), StateHash.of(MatchBootstrap.create(db, setup)))
     }
 
