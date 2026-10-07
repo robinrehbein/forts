@@ -78,6 +78,14 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
     /** Zuletzt verarbeitete Snapshot-Nummer (Tests, Diagnose). */
     val lastProcessedSeq: Long get() = lastSeq
 
+    /**
+     * Additiv (WP7): Meldet, dass die Fx der Snapshot-Nummer [seq] bereits verarbeitet wurden (nach `bind` aufrufen).
+     * Eine Plattform, die den Renderer neu aufbaut (geänderte Einstellungen, Speicherdruck), setzt damit die zuletzt
+     * gezeichnete `seq`, damit der neue Renderer die Fx des aktuellen, unveränderten Snapshots nicht noch einmal
+     * abspielt (Explosion, Shake, Blitz, Decals).
+     */
+    fun markSeqProcessed(seq: Long) { lastSeq = seq }
+
     /** Schlüssel der zuletzt gezeichneten statischen Ebenen (Tests). */
     var lastLayerKey: Long = 0L; private set
 

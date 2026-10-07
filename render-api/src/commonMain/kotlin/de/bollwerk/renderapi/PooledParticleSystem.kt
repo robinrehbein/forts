@@ -142,7 +142,7 @@ class PooledParticleSystem(
             is FxEvent.BeamRepaired -> {
                 for (i in 0 until 3) emit(ParticleKind.SPARK, event.x, event.y, rng.range(-3f, 3f), rng.range(-4f, -1f), rng.range(0.2f, 0.4f), 1f, Palette.OK)
             }
-            is FxEvent.BeamSplit, is FxEvent.TechChanged, is FxEvent.CommandRejected -> Unit
+            is FxEvent.BeamSplit, is FxEvent.TechChanged, is FxEvent.CommandRejected, is FxEvent.FireRefused -> Unit
         }
     }
 
@@ -234,6 +234,7 @@ class PooledParticleSystem(
     }
 
     private fun hit(e: FxEvent.Hit) {
+        if (e.splash) return // Explosionsschaden: nur Treffer-Blitz (FxState), Partikel kommen von der Explosion
         val col = when (e.target) {
             HitTarget.BEAM -> Palette.WOOD_DARK
             HitTarget.DEVICE -> Palette.STEEL_HI

@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
 }
 
@@ -20,6 +21,7 @@ dependencies {
     implementation(project(":setup"))
     implementation(project(":ai"))
     implementation(project(":render-api"))
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(platform(libs.junit.bom))
@@ -32,4 +34,13 @@ application {
     applicationName = "simrunner"
 }
 
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    systemProperty("java.awt.headless", "true")
+}
+
+// Relative Pfade der Kommandozeile (Szenarien, PNGs) gelten ab dem Repo-Wurzelverzeichnis.
+tasks.named<JavaExec>("run") {
+    workingDir = rootProject.projectDir
+    systemProperty("java.awt.headless", "true")
+}

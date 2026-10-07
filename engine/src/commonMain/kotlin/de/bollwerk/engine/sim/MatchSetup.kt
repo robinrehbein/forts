@@ -52,6 +52,7 @@ object MatchFactory {
             turn.activePlayer = 0
             turn.turnNumber = 1
             turn.ticksLeft = setup.turnTicks
+            turn.lengthTicks = setup.turnTicks
             turn.phase = TurnPhase.PLAY
         }
 

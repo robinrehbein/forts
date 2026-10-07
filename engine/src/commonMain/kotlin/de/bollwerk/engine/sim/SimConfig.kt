@@ -61,14 +61,15 @@ data class SimConfig(
     val undoRefund: Float = 1f,
     /** Länge des Zurück-Journals je Spieler (Prototyp 60). */
     val undoDepth: Int = 60,
-    /** Zurück nur innerhalb so vieler Ticks nach dem Bau (0 = unbegrenzt, wie im Prototyp). */
-    val undoWindowTicks: Int = 0,
+    /** Zurück nur innerhalb so vieler Ticks nach dem Bau (Standard 10 s; 0 = unbegrenzt, wie im Prototyp). */
+    val undoWindowTicks: Int = 600,
     val fire: FireConfig = FireConfig(),
     val repair: RepairConfig = RepairConfig(),
     val debris: DebrisConfig = DebrisConfig(),
     val door: DoorConfig = DoorConfig(),
     val combat: CombatConfig = CombatConfig(),
     val wind: WindConfig = WindConfig(),
+    val turn: TurnConfig = TurnConfig(),
 ) {
     /** Länge eines Substeps in s. */
     val substepDt: Float get() = dt / substeps
@@ -166,6 +167,22 @@ data class CombatConfig(
     val deviceSplashRadiusScale: Float = 0.6f,
     /** So lange ignoriert ein Projektil den Balken seiner Waffe (0,25 s). */
     val sourceIgnoreTicks: Int = 15,
+    // ---- WP4, additiv (Prototyp `explode`, `reactorDown`, `terrainHit`) ----
+    /** Schadensfaktor für Balken hinter einer geschlossenen Tür (Sichtlinie Explosion → Balken schneidet die Tür). */
+    val doorShieldFactor: Float = 0.3f,
+    /** Abstand (m), ab dem die Sichtlinie eine geschlossene Tür "schneidet" (Prototyp: Abstand² < 0,04). */
+    val doorShieldDistance: Float = 0.2f,
+    /** Faktor auf den Explosionsschaden an Geräten (Prototyp 0,9). */
+    val splashDeviceFactor: Float = 0.9f,
+    /** Reaktor-Explosion (Prototyp `reactorDown`: Radius 6,5 m, 280 Schaden, Impuls 2600, entzündet Holz in 2 m). */
+    val reactorBlastRadius: Float = 6.5f,
+    val reactorBlastDamage: Float = 280f,
+    val reactorBlastImpulse: Float = 2600f,
+    val reactorBlastIgniteRadius: Float = 2f,
+    /** Abtastschritt (m) des Strahl-Gelände-Tests, danach 6 Bisektionsschritte (Prototyp 0,25). */
+    val terrainSampleStep: Float = 0.25f,
+    /** Zellgröße (m) des Balken-Rasters (Broadphase) für Projektile und Strahlen. */
+    val broadphaseCellSize: Float = 2f,
 )
 
 /** Wind: Startwert und Änderungen innerhalb `MapSpec.windMin..windMax` (Strom `RngStreams.WIND`). */
@@ -176,3 +193,20 @@ data class WindConfig(
     /** Größte Änderung je Wechsel in m/s. */
     val maxChange: Float = 2f,
 )
+
+/**
+ * Zugmodus (Hotseat, WP3). Die Zuglänge selbst kommt aus `MatchSetup.turnTicks` (App: 45 s = 2700 Ticks);
+ * hier stehen die Phasen zwischen den Zügen.
+ */
+@Serializable
+data class TurnConfig(
+    /** Nachlaufzeit nach Zugende, in der die Simulation weiterläuft (Projektile landen, Einsturz): 6 s. */
+    val resolveTicks: Int = 360,
+    /** Übergabe-Phase vor dem nächsten Zug (mirrort den 3-2-1-Countdown der App): 3 s. */
+    val handoverTicks: Int = 180,
+) {
+    companion object {
+        /** Standard-Zuglänge Hotseat (Stil-Bibel/Prototyp): 45 s bei 60 Ticks/s. */
+        const val DEFAULT_PLAY_TICKS: Int = 45 * 60
+    }
+}

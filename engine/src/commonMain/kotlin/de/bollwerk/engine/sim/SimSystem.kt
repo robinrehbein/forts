@@ -50,7 +50,7 @@ fun interface SimSystem {
 
 /**
  * Feste Ausführungsreihenfolge der Systeme (Ordinal = Reihenfolge). Zuständige Arbeitspakete:
- * COMMANDS/ECONOMY/TECH/DOORS/RESULT/TURN/WIND = WP3, DEVICES/WEAPONS/PROJECTILES/FIRE/REPAIR = WP4,
+ * COMMANDS/ECONOMY/TECH/RESULT/TURN/WIND = WP3, DEVICES/WEAPONS/PROJECTILES/FIRE/REPAIR/DOORS/REACTORS = WP4,
  * PHYSICS/STRAIN_DAMAGE/TOPOLOGY/DEBRIS = WP2.
  */
 enum class SystemSlot {
@@ -78,6 +78,11 @@ enum class SystemSlot {
     TOPOLOGY,
     /** Trümmer-Alter, Zerfall, Einschläge, Kill-Grenzen. */
     DEBRIS,
+    /**
+     * Reaktor-Explosion (WP4, additiv) für Reaktoren, die nach FIRE gestorben sind (Einsturz in TOPOLOGY,
+     * Trümmer-Schaden/-Zerfall in DEBRIS), damit jede Reaktor-Zerstörung physisch explodiert – vor RESULT.
+     */
+    REACTORS,
     /** Reaktor zerstört → Ergebnis. */
     RESULT,
     /** Zugwechsel/Phasen im Zugmodus. */

@@ -1,0 +1,9 @@
+{
+  "name": "idle_schlucht",
+  "description": "Beide Festungen stehen 60 s ohne Eingriff: kein Balken darf brechen.",
+  "map": "schlucht",
+  "seed": 1,
+  "ticks": 3600,
+  "idle": true,
+  "commands": []
+}

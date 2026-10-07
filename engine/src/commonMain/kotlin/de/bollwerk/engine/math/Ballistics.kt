@@ -3,6 +3,7 @@ package de.bollwerk.engine.math
 import de.bollwerk.engine.sim.MapSpec
 import de.bollwerk.engine.sim.SimConfig
 import de.bollwerk.engine.sim.Terrain
+import de.bollwerk.engine.sim.WeaponProps
 
 /**
  * Gemeinsame Ballistik für Simulation (WP4), Zielvorschau (WP8) und KI-Löser (WP11) – alle benutzen
@@ -11,6 +12,12 @@ import de.bollwerk.engine.sim.Terrain
  * Teilschritte pro Tick. Winkel: 0 = rechts, positiv = nach oben, Richtung `(cos a, −sin a)`.
  *
  * Zustand als `FloatArray(4)`: [X], [Y], [VX], [VY].
+ *
+ * `gravityScale` (WP4, additiv, Standard 1): Faktor auf `SimConfig.gravity` je Waffe (`WeaponProps.gravityScale`,
+ * Brandrakete 0,6). Mit 1 ist das Ergebnis bitgleich zur Fassung ohne Faktor (`g · 1 = g`). **Für Waffen die
+ * Überladungen mit [WeaponProps] benutzen** (`predict(…, weapon, …)`, `solveAngle(…, weapon, …)`): Sie übernehmen
+ * Mündungsgeschwindigkeit und `gravityScale` gemeinsam, sodass Vorschau/KI den Faktor nicht vergessen können. Die
+ * Fassungen mit nackter `muzzleSpeed` bleiben für bestehende Aufrufer (Welle-0-Vertrag) erhalten.
  */
 object Ballistics {
     const val X = 0
@@ -19,18 +26,18 @@ object Ballistics {
     const val VY = 3
 
     /** Ein Teilschritt der Länge [h]. */
-    fun step(st: FloatArray, h: Float, wind: Float, cfg: SimConfig) {
-        st[VY] += cfg.gravity * h
+    fun step(st: FloatArray, h: Float, wind: Float, cfg: SimConfig, gravityScale: Float = 1f) {
+        st[VY] += cfg.gravity * gravityScale * h
         st[VX] += wind * cfg.windAccelPerMps * h
         st[X] += st[VX] * h
         st[Y] += st[VY] * h
     }
 
     /** Ein ganzer Tick (`projectileSubsteps` Teilschritte). */
-    fun tick(st: FloatArray, wind: Float, cfg: SimConfig) {
+    fun tick(st: FloatArray, wind: Float, cfg: SimConfig, gravityScale: Float = 1f) {
         val n = cfg.projectileSubsteps
         val h = cfg.dt / n
-        for (i in 0 until n) step(st, h, wind, cfg)
+        for (i in 0 until n) step(st, h, wind, cfg, gravityScale)
     }
 
     /** Startzustand aus Mündung ([x0], [y0]), Winkel, Kraft (0..1) und Mündungsgeschwindigkeit. */
@@ -50,6 +57,7 @@ object Ballistics {
     fun predict(
         x0: Float, y0: Float, angle: Float, power: Float, muzzleSpeed: Float, wind: Float, cfg: SimConfig,
         out: FloatArray, maxPoints: Int, terrain: Terrain? = null, map: MapSpec? = null,
+        gravityScale: Float = 1f,
     ): Int {
         val st = FloatArray(4)
         launch(x0, y0, angle, power, muzzleSpeed, st)
@@ -57,7 +65,7 @@ object Ballistics {
         val limit = if (maxPoints * 2 > out.size) out.size / 2 else maxPoints
         while (count < limit) {
             val px = st[X]; val py = st[Y]
-            tick(st, wind, cfg)
+            tick(st, wind, cfg, gravityScale)
             var x = st[X]; var y = st[Y]
             var stop = false
             if (terrain != null) {
@@ -81,6 +89,25 @@ object Ballistics {
     }
 
     /**
+     * [predict] für eine Waffe: nimmt Mündungsgeschwindigkeit **und** `gravityScale` aus [weapon] (Brandrakete 0,6).
+     * Zielvorschau (WP8) und KI (WP11) sollen diese Fassung benutzen, damit die Bahn der echten Flugbahn entspricht.
+     */
+    fun predict(
+        x0: Float, y0: Float, angle: Float, power: Float, weapon: WeaponProps, wind: Float, cfg: SimConfig,
+        out: FloatArray, maxPoints: Int, terrain: Terrain? = null, map: MapSpec? = null,
+    ): Int = predict(
+        x0, y0, angle, power, weapon.muzzleSpeed, wind, cfg, out, maxPoints, terrain, map, gravityScale = weapon.gravityScale,
+    )
+
+    /** [solveAngle] für eine Waffe (Mündungsgeschwindigkeit und `gravityScale` aus [weapon]); siehe [predict]. */
+    fun solveAngle(
+        x0: Float, y0: Float, tx: Float, ty: Float, power: Float, weapon: WeaponProps, wind: Float,
+        cfg: SimConfig, highArc: Boolean, maxTicks: Int = 900,
+    ): Float = solveAngle(
+        x0, y0, tx, ty, power, weapon.muzzleSpeed, wind, cfg, highArc, maxTicks, gravityScale = weapon.gravityScale,
+    )
+
+    /**
      * Sucht den Abschusswinkel, mit dem die Bahn bei Kraft [power] den Punkt ([tx], [ty]) trifft
      * (Fehler = Höhe der Bahn bei x = tx minus ty). Rastersuche über 1°-Schritte in Zielrichtung, dann
      * Bisektion. [highArc] wählt die steile Lösung (Mörser).
@@ -88,11 +115,11 @@ object Ballistics {
      */
     fun solveAngle(
         x0: Float, y0: Float, tx: Float, ty: Float, power: Float, muzzleSpeed: Float, wind: Float,
-        cfg: SimConfig, highArc: Boolean, maxTicks: Int = 900,
+        cfg: SimConfig, highArc: Boolean, maxTicks: Int = 900, gravityScale: Float = 1f,
     ): Float {
         val right = tx >= x0
         val st = FloatArray(4)
-        fun err(a: Float): Float = heightErrorAt(x0, y0, tx, ty, a, power, muzzleSpeed, wind, cfg, maxTicks, st, right)
+        fun err(a: Float): Float = heightErrorAt(x0, y0, tx, ty, a, power, muzzleSpeed, wind, cfg, maxTicks, st, right, gravityScale)
         val steps = 88
         var bestLo = Float.NaN; var bestHi = Float.NaN
         var prevA = deg(1f, right)
@@ -129,12 +156,12 @@ object Ballistics {
     /** y(Bahn bei x = tx) − ty; +∞, wenn x = tx nie erreicht wird (zu kurz). */
     private fun heightErrorAt(
         x0: Float, y0: Float, tx: Float, ty: Float, angle: Float, power: Float, muzzleSpeed: Float, wind: Float,
-        cfg: SimConfig, maxTicks: Int, st: FloatArray, right: Boolean,
+        cfg: SimConfig, maxTicks: Int, st: FloatArray, right: Boolean, gravityScale: Float,
     ): Float {
         launch(x0, y0, angle, power, muzzleSpeed, st)
         for (i in 0 until maxTicks) {
             val px = st[X]; val py = st[Y]
-            tick(st, wind, cfg)
+            tick(st, wind, cfg, gravityScale)
             val crossed = if (right) st[X] >= tx else st[X] <= tx
             if (crossed) {
                 val dx = st[X] - px

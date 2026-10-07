@@ -120,7 +120,7 @@ object StateHash {
     private fun beamRecord(h: Hasher, r: BeamRecord) {
         h.long(r.nodeARef); h.long(r.nodeBRef); h.int(r.material); h.int(r.owner)
         h.float(r.restLen); h.float(r.hp); h.float(r.maxHp); h.float(r.fire); h.float(r.fuel)
-        h.int(r.flags); h.float(r.texOffset)
+        h.int(r.flags); h.float(r.texOffset); h.long(r.ref)
     }
 
     private fun freeLists(h: Hasher, pool: Pool) {

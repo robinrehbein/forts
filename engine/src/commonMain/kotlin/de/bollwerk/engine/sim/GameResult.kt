@@ -46,4 +46,10 @@ class TurnState(
     override var turnNumber: Int = 0,
     override var ticksLeft: Int = 0,
     override var phase: TurnPhase = TurnPhase.PLAY,
-) : TurnView
+) : TurnView {
+    /**
+     * Länge eines Zugs in Ticks (0 = unbegrenzt), von `MatchFactory` aus `MatchSetup.turnTicks` gesetzt (WP3, additiv).
+     * Konstant für die ganze Partie und Teil des Setups (steht im Replay), deshalb nicht im `StateHash`.
+     */
+    var lengthTicks: Int = 0
+}

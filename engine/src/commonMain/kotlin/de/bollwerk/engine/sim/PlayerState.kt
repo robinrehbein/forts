@@ -18,6 +18,10 @@ interface PlayerView {
     /** Einträge im Zurück-Journal (UI: "Zurück" aktiv, wenn > 0). */
     val undoCount: Int
     fun hasTech(techIndex: Int): Boolean
+    /** Neuester Zurück-Eintrag oder null (für Validator/Werkzeuge; additiv, WP3). */
+    fun undoTop(): UndoEntry? = null
+    /** Zurück-Eintrag [index] (0 = ältester) oder null (additiv, WP3). */
+    fun undoAt(index: Int): UndoEntry? = null
 }
 
 /**
@@ -48,6 +52,8 @@ class PlayerState(
 
     override val techs: TechSetView get() = techUnlocked
     override val undoCount: Int get() = undoJournal.size
+    override fun undoTop(): UndoEntry? = undoJournal.peek()
+    override fun undoAt(index: Int): UndoEntry? = if (index in 0 until undoJournal.size) undoJournal[index] else null
     override fun hasTech(techIndex: Int): Boolean = techIndex in techUnlocked
 }
 
@@ -67,6 +73,8 @@ data class BeamRecord(
     val fuel: Float,
     val flags: Int,
     val texOffset: Float,
+    /** Ref des ursprünglichen Balkens (WP3, additiv): Zurück ordnet damit ältere Journal-Einträge dem neu angelegten Balken zu. */
+    val ref: Long = PoolView.NO_REF,
 )
 
 /** Gerät, das beim Split auf eine Hälfte umgezogen ist, mit seinem ursprünglichen Parameter [t]. */
@@ -104,10 +112,13 @@ data class UndoEntry(
  * Begrenztes Zurück-Journal je Spieler (Prototyp: 60 Einträge, ältester fällt heraus). PERSISTENT und gehasht.
  *
  * Regeln für `Command.Undo` (umgesetzt vom Command-System, WP3):
- * - Nimmt den **neuesten** Eintrag. Erlaubt nur, wenn ([SimConfig.undoWindowTicks] == 0 oder
- *   `tick − entry.tick ≤ undoWindowTicks`) und alle erzeugten Objekte (Balken/Gerät, neue Knoten, Split-Hälften)
- *   noch leben, nicht brennen und nicht beschädigt sind (Hälften: TP ≥ `original.hp`); sonst
- *   `RejectReason.UNDO_BLOCKED` und der Eintrag bleibt.
+ * - Nimmt den **neuesten noch erfüllbaren** Eintrag. Einträge, die nie mehr zurückgenommen werden können, weil sie
+ *   abgelaufen sind (`tick − entry.tick > SimConfig.undoWindowTicks`, 0 = unbegrenzt) oder ihr Balken/Gerät bzw. eine
+ *   Split-Hälfte zerstört wurde, fallen **jeden Tick aus dem Journal** (WP3 `UndoRules.prune`) und blockieren ältere
+ *   nicht; `RulesValidator`/`canUndo` rechnen dasselbe schreibgeschützt nach, die Antwort ist also zwischen den Ticks
+ *   dieselbe wie im Command-System. Ohne erfüllbaren Eintrag: `RejectReason.NOTHING_TO_UNDO`.
+ * - Ist der oberste erfüllbare Eintrag beschädigt (TP < Original), brennt oder hat einen Split-/Neuknoten verloren:
+ *   `RejectReason.UNDO_BLOCKED`, der Eintrag bleibt.
  * - Entfernt die erzeugten Objekte in umgekehrter Reihenfolge, **vereinigt Split-Balken wieder** zum
  *   Originalbalken (Daten aus [BeamRecord], neue uid) und setzt umgezogene Geräte auf ihr altes `t` zurück.
  * - Erstattet `undoRefund ×` ([UndoEntry.metal], [UndoEntry.energy]).

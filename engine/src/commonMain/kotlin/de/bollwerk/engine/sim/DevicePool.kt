@@ -13,6 +13,13 @@ object DeviceFlags {
     const val DISABLED: Int = 1 shl 4
     /** Laser feuert gerade ([DevicePool.beamTicksLeft] > 0); Endpunkt in `laserEndX/Y`. */
     const val FIRING_BEAM: Int = 1 shl 5
+    /**
+     * PERSISTENT (über `flags` gehasht). Schuss angefordert: Das Command-System (WP3) setzt das Bit beim Anwenden
+     * von `Command.Fire` (Zielwinkel/Kraft vorher über `SetAim` in `aimAngle`/`power`). Das Waffen-System
+     * (`SystemSlot.WEAPONS`, WP4) verbraucht es im selben Tick: löscht es immer, feuert nur, wenn die Waffe fertig
+     * gebaut, nachgeladen und bezahlbar ist (sonst `FxEvent.FireRefused` bei fehlenden Ressourcen).
+     */
+    const val FIRE_REQUESTED: Int = 1 shl 6
 }
 
 /** Lesender Zugriff auf Geräte. */

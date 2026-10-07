@@ -42,7 +42,10 @@ class ProjectilePool(initialCapacity: Int = 64) : Pool(initialCapacity), Project
     var ttl = IntArray(initialCapacity); private set
     /** PERSISTENT. Alter in Ticks. */
     var ageTicks = IntArray(initialCapacity); private set
-    /** PERSISTENT. Abschießendes Gerät (Slot, −1 = keines). */
+    /**
+     * PERSISTENT. **uid** (`PoolView.uid`, nie wiederverwendet) des abschießenden Geräts, −1 = keines. Bewusst kein
+     * Slot: das Projektil lebt bis zu 16 s, der Slot einer zerstörten Waffe kann inzwischen neu belegt sein.
+     */
     var sourceDevice = IntArray(initialCapacity); private set
     /**
      * PERSISTENT. Ref des Balkens, auf dem die Waffe sitzt; wird ignoriert, solange

@@ -74,10 +74,15 @@ sealed class FxEvent {
         val x1: Float, val y1: Float, val deviceUid: Int,
     ) : FxEvent()
 
-    /** Treffer-Blitz auf Balken/Gerät (Prototyp `flash`) oder Einschlag im Gelände. */
+    /**
+     * Treffer-Blitz auf Balken/Gerät (Prototyp `flash`) oder Einschlag im Gelände.
+     * [splash] (WP4, additiv): Schaden aus einer Explosion (Prototyp `hitBeam(…, fx = false)`): Balken/Gerät blitzt auf,
+     * aber ohne eigene Treffer-Partikel/-Geräusche (die kommen von `Explosion`); Position = Explosionszentrum.
+     */
     data class Hit(
         override val tick: Long, override val x: Float, override val y: Float,
         val target: HitTarget, val targetUid: Int, val damage: Float, val weaponId: Int,
+        val splash: Boolean = false,
     ) : FxEvent()
 
     /** Holzbalken hat Feuer gefangen. */
@@ -123,6 +128,16 @@ sealed class FxEvent {
     data class CommandRejected(
         override val tick: Long, override val x: Float, override val y: Float,
         val playerId: Int, val reason: RejectReason,
+    ) : FxEvent()
+
+    /**
+     * Schuss verweigert (WP4, additiv): Waffe [deviceUid] von [playerId] sollte feuern, aber Metall/Energie reichen
+     * nicht ([reason] = `NOT_ENOUGH_METAL` bzw. `NOT_ENOUGH_ENERGY`). HUD: Ressourcen-Chip blinkt (Prototyp `flashRes`).
+     * Position = Mündung.
+     */
+    data class FireRefused(
+        override val tick: Long, override val x: Float, override val y: Float,
+        val deviceUid: Int, val playerId: Int, val reason: RejectReason,
     ) : FxEvent()
 
     /** Reaktor von [playerId] zerstört (Siegsequenz). */

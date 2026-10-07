@@ -40,7 +40,10 @@ enum class RejectReason(val displayKey: String) {
     /** Reaktor bzw. Balken mit Reaktor kann nicht abgerissen werden. */
     REACTOR_PROTECTED("reject_reactor_protected"),
     NOTHING_TO_UNDO("reject_nothing_to_undo"),
-    /** Letzter Bau kann nicht zurückgenommen werden (beschädigt, brennt, zerstört oder zu alt). */
+    /**
+     * Letzter Bau kann (noch) nicht zurückgenommen werden: beschädigt oder brennend (der Eintrag bleibt). Abgelaufene oder
+     * zerstörte Einträge fallen dagegen aus dem Journal und ergeben [NOTHING_TO_UNDO] bzw. den nächstälteren Eintrag.
+     */
     UNDO_BLOCKED("reject_undo_blocked"),
     UNKNOWN_CONTENT("reject_unknown_content"),
     GAME_OVER("reject_game_over"),

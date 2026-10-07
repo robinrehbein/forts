@@ -1,0 +1,13 @@
+{
+  "name": "stress_300",
+  "description": "Last-Test: 674 zusaetzliche Balken (2 x 337) (Gitter links von der Festung, beide Spieler) und 100 Projektile in der Luft.",
+  "map": "schlucht",
+  "seed": 7,
+  "ticks": 1800,
+  "commands": [
+    { "tick": 0,   "action": "addLattice", "player": 0, "material": "wood",  "x": 2,   "y": 34, "cols": 15, "rows": 7, "cell": 0.8 },
+    { "tick": 0,   "action": "addLattice", "player": 1, "material": "metal", "x": 106, "y": 34, "cols": 15, "rows": 7, "cell": 0.8 },
+    { "tick": 120, "action": "spawnProjectiles", "player": 0, "weapon": "mortar", "projectiles": 50, "x": 38, "y": 20, "vx": 14, "vy": -20, "dx": 0, "dvx": 0.35, "dvy": -0.05 },
+    { "tick": 120, "action": "spawnProjectiles", "player": 1, "weapon": "mortar", "projectiles": 50, "x": 82, "y": 20, "vx": -14, "vy": -20, "dx": 0, "dvx": -0.35, "dvy": -0.05 }
+  ]
+}
