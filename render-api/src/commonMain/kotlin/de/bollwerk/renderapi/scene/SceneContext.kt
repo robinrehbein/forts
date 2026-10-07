@@ -136,6 +136,32 @@ internal class SceneContext {
     var tpm = ProceduralTextures.BASE_TPM
     var jointWorld = 0.5f
 
+    /**
+     * Mip-Stufen der Balken- und Knotentexturen: je Stufe [MIP_TPM] Texel je Meter. Die Stufe passt zur
+     * aktuellen Bildschirmabbildung ([s] Pixel je Meter), damit die feine Textur nie stark verkleinert
+     * (Flimmern/Aliasing) gezeichnet wird. Handles: `texMip[stufe * MIP_KINDS + art]`.
+     */
+    val texMip = IntArray(MIP_TPM.size * MIP_KINDS) { -1 }
+    val jointWorldMip = FloatArray(MIP_TPM.size)
+    var mip = 0
+
+    /** Wählt die kleinste Stufe, deren Texeldichte die Bildschirmdichte [scale] (px/m) noch abdeckt. */
+    fun selectMip(scale: Float) {
+        var m = 0
+        while (m < MIP_TPM.size - 1 && MIP_TPM[m] < scale * 0.92f) m++
+        mip = m
+        val b = m * MIP_KINDS
+        texWood = texMip[b]; texMetal = texMip[b + 1]; texArmour = texMip[b + 2]; texDoor = texMip[b + 3]
+        texJointWood = texMip[b + 4]; texJointMetal = texMip[b + 5]; texJointAnchor = texMip[b + 6]
+        tpm = MIP_TPM[m]
+        jointWorld = jointWorldMip[m]
+    }
+
+    /** Pro Knoten: Anzahl angeschlossener lebender Nicht-Seil-Balken (für Fundamente und Fahnen). */
+    var solidBeams = IntArray(0)
+    /** Pro Knoten: es hängt mindestens ein lebendes Seil dran. */
+    var ropeBeams = IntArray(0)
+
     /** Polygonpuffer (xy-Paare). */
     var poly = FloatArray(2048)
     val poly2 = FloatArray(64)
@@ -149,7 +175,10 @@ internal class SceneContext {
     }
 
     fun ensureNodes(n: Int) {
-        if (ix.size < n) { ix = FloatArray(maxOf(n, ix.size * 2, 64)); iy = FloatArray(ix.size) }
+        if (ix.size < n) {
+            ix = FloatArray(maxOf(n, ix.size * 2, 64)); iy = FloatArray(ix.size)
+            solidBeams = IntArray(ix.size); ropeBeams = IntArray(ix.size)
+        }
     }
 
     fun setView(viewW: Float, viewH: Float, density: Float, scale: Float, ox: Float, oy: Float) {
@@ -158,6 +187,7 @@ internal class SceneContext {
         px = 1f / scale
         dp = density / scale
         cullL = 0f; cullT = 0f; cullR = viewW; cullB = viewH
+        selectMip(scale)
     }
 
     /** Cull-Rechteck in Bildschirm-Pixeln (Standard: ganzer Bildschirm; Lupe: Kreis-Begrenzung). */
@@ -346,6 +376,10 @@ internal class SceneContext {
     }
 
     companion object {
+        /** Texel je Meter der Mip-Stufen (Faktor 1,5); Texturarten: Holz, Metall, Panzer, Tür, 3 Knoten. */
+        val MIP_TPM = intArrayOf(24, 36, 54, 80, 120, 180)
+        const val MIP_KINDS = 7
+
         val OUTLINE: Int = Palette.OUTLINE
         val OUTLINE_BEAM: Int = Palette.OUTLINE_BEAM
         val STRIPE_DARK: Int = Palette.STEEL_DEEP
@@ -362,8 +396,8 @@ internal class SceneContext {
 
         fun fract(v: Float): Float = v - floor(v)
 
-        /** Farbe mit Alpha 0..1. */
-        fun a(rgb: Int, alpha: Float): Int = (rgb and Palette.WHITE) or ((clamp(alpha, 0f, 1f) * 255f + 0.5f).toInt() shl 24)
+        /** Farbe mit Alpha 0..1 (ersetzt einen vorhandenen Alphakanal; `Palette.WHITE` trägt Alpha 255, daher Maske 0xFFFFFF). */
+        fun a(rgb: Int, alpha: Float): Int = (rgb and 0xFFFFFF) or ((clamp(alpha, 0f, 1f) * 255f + 0.5f).toInt() shl 24)
 
         /** Ersetzt den Alphakanal von [argb] durch [alpha] (0..1). */
         fun withAlpha(argb: Int, alpha: Float): Int = a(argb, alpha)

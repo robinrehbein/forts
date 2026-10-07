@@ -75,11 +75,7 @@
     <string name="settings_language_value">Folgt dem System</string>
 
     <!-- Spiel / Pause -->
-    <string name="game_placeholder">Spielfläche (Platzhalter)</string>
     <string name="game_pause_cd">Pause</string>
-    <string name="game_end_turn">Zug beenden</string>
-    <string name="game_debug_victory">Sieg (Test)</string>
-    <string name="game_debug_defeat">Niederlage (Test)</string>
     <string name="pause_title">Pause</string>
     <string name="pause_resume">Fortsetzen</string>
     <string name="pause_restart">Neustart</string>
@@ -125,4 +121,124 @@
         <item>Schütze den Reaktor mit Panzerbalken</item>
         <item>Hohe Windturbinen liefern mehr Energie</item>
     </string-array>
+
+    <!-- Spiel / HUD (WP9) -->
+    <string name="game_loading">Gefecht wird vorbereitet …</string>
+    <string name="hud_metal">Metall</string>
+    <string name="hud_energy">Energie</string>
+    <string name="hud_time">Zeit</string>
+    <string name="hud_wind">Wind</string>
+    <string name="hud_wind_unit">m/s</string>
+    <string name="hud_rate">%1$s/s</string>
+    <string name="hud_energy_cap">/%1$d</string>
+    <string name="hud_enemy">Spieler %1$d</string>
+    <string name="hud_turn">Zug %1$d</string>
+    <string name="hud_resolve">Auswertung</string>
+    <string name="hud_turn_time">%1$d s</string>
+    <string name="hud_per_meter">/m</string>
+    <string name="hud_wind_left_cd">Wind nach links</string>
+    <string name="hud_wind_right_cd">Wind nach rechts</string>
+    <string name="tool_weapons">Waffen</string>
+    <string name="tool_techtree">Techbaum</string>
+    <string name="tool_undo">Zurück</string>
+    <string name="tool_repair">Reparatur</string>
+    <string name="tool_delete">Abriss</string>
+    <string name="tool_door">Tür</string>
+    <string name="tool_none">Bauen</string>
+    <string name="mode_aim">Zielen</string>
+    <string name="mode_build">Bauen</string>
+    <string name="aim_angle_power">Winkel · Kraft</string>
+    <string name="aim_power">Kraft</string>
+    <string name="aim_door_open">Tür offen</string>
+    <string name="aim_door_closed">Tür zu</string>
+    <string name="aim_fire">Feuer</string>
+    <string name="aim_seconds">%1$s s</string>
+    <string name="aim_building">im Bau</string>
+    <string name="aim_no_weapon">Keine Waffe</string>
+    <string name="aim_pick_weapon">Waffe antippen, dann ziehen</string>
+    <string name="aim_splash">%1$s · Splash %2$s m</string>
+    <string name="aim_wind_drift">Wind %1$s m</string>
+    <string name="aim_next_weapon_cd">Nächste Waffe</string>
+    <string name="kind_mg">Salve</string>
+    <string name="kind_sniper">Durchschlag</string>
+    <string name="kind_mortar">Granate</string>
+    <string name="kind_cannon">Kugel</string>
+    <string name="kind_rocket">Brandsatz</string>
+    <string name="kind_laser">Strahl</string>
+    <string name="tech_title">Techbaum</string>
+    <string name="tech_subtitle">Gebäude bauen, um Waffen und Materialien freizuschalten · Kosten je Schuss bzw. je Meter</string>
+    <string name="tech_built">Gebaut</string>
+    <string name="tech_building">Im Bau · %1$d %%</string>
+    <string name="tech_available">Verfügbar</string>
+    <string name="tech_locked">Gesperrt</string>
+    <string name="tech_active">Aktiv</string>
+    <string name="tech_level">Stufe 1</string>
+    <string name="tech_ready_in">Fertig in %1$s</string>
+    <string name="tech_build">Bauen</string>
+    <string name="tech_requires">Benötigt %1$s</string>
+    <string name="tech_damage">Schaden %1$d</string>
+    <string name="tech_range">Reichweite %1$d m</string>
+    <string name="tech_salvo" tools:ignore="PluralsCandidate">%1$d × %2$d Salve</string>
+    <string name="tech_incendiary">%1$d + Brand</string>
+    <string name="tech_beam">%1$d/s für %2$d s</string>
+    <string name="tech_seconds">%1$d s</string>
+    <string name="tech_close_cd">Techbaum schließen</string>
+    <string name="ctx_repair">Reparieren</string>
+    <string name="ctx_delete">Abreißen</string>
+    <string name="ctx_door_open">Tür öffnen</string>
+    <string name="ctx_door_close">Tür schließen</string>
+    <string name="ctx_extinguish">Löschen</string>
+    <string name="end_turn">Zug beenden</string>
+    <string name="scene_apex">SCHEITEL %1$d m</string>
+    <string name="result_draw">Unentschieden</string>
+    <string name="reason_timeout">Zeit abgelaufen</string>
+    <string name="reason_draw">Beide Reaktoren zerstört</string>
+    <string name="settings_haptics">Vibration</string>
+    <string name="settings_haptics_desc">Leichte Vibration bei eigenen Schüssen und Treffern</string>
+
+    <!-- Bauteile (Content-nameKeys) -->
+    <string name="material_wood">Holz</string>
+    <string name="material_metal">Metall</string>
+    <string name="material_armour">Panzer</string>
+    <string name="material_rope">Seil</string>
+    <string name="material_door">Tür</string>
+    <string name="device_reactor">Reaktor</string>
+    <string name="device_mine">Mine</string>
+    <string name="device_turbine">Turbine</string>
+    <string name="device_workshop">Werkstatt</string>
+    <string name="device_armoury">Waffenkammer</string>
+    <string name="device_upgrade_center">Upgrade-Zentrum</string>
+    <string name="device_factory">Fabrik</string>
+    <string name="device_mg">MG</string>
+    <string name="device_sniper">Scharfschütze</string>
+    <string name="device_mortar">Mörser</string>
+    <string name="device_cannon">Kanone</string>
+    <string name="device_rocket">Brandrakete</string>
+    <string name="device_laser">Laser</string>
+
+    <!-- Ablehnungsgründe (RejectReason.displayKey) -->
+    <string name="reject_not_enough_metal">Zu wenig Metall</string>
+    <string name="reject_not_enough_energy">Zu wenig Energie</string>
+    <string name="reject_too_long">Zu lang</string>
+    <string name="reject_too_short">Zu kurz</string>
+    <string name="reject_not_connected">Nicht verbunden</string>
+    <string name="reject_out_of_build_zone">Außerhalb der Bauzone</string>
+    <string name="reject_blocked_by_terrain">Gelände im Weg</string>
+    <string name="reject_duplicate_beam">Balken existiert schon</string>
+    <string name="reject_occupied">Platz belegt</string>
+    <string name="reject_locked_tech">Noch nicht freigeschaltet</string>
+    <string name="reject_invalid_target">Ungültiges Ziel</string>
+    <string name="reject_stale_target">Ziel existiert nicht mehr</string>
+    <string name="reject_not_owner">Nicht dein Bauteil</string>
+    <string name="reject_not_your_turn">Nicht dein Zug</string>
+    <string name="reject_reloading">Lädt nach</string>
+    <string name="reject_still_building">Noch im Bau</string>
+    <string name="reject_needs_ore">Nur über Erz</string>
+    <string name="reject_top_mount_only">Nur oben montierbar</string>
+    <string name="reject_unique_limit">Nur einmal erlaubt</string>
+    <string name="reject_reactor_protected">Reaktor ist geschützt</string>
+    <string name="reject_nothing_to_undo">Nichts zurückzunehmen</string>
+    <string name="reject_undo_blocked">Zurück nicht möglich (beschädigt)</string>
+    <string name="reject_unknown_content">Unbekanntes Bauteil</string>
+    <string name="reject_game_over">Spiel ist vorbei</string>
 </resources>

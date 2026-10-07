@@ -35,6 +35,9 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
     var topY = FloatArray(0)
     var normalX = FloatArray(0)
     var normalY = FloatArray(0)
+    /** Montagepunkt (Fußpunkt auf dem Balken) je Slot, aus den interpolierten Knoten (Fahnen weichen Geräten aus). */
+    var mountX = FloatArray(0)
+    var mountY = FloatArray(0)
     /** Wurde der Slot in diesem Frame berechnet (lebt, Balken lebt)? */
     var drawn = BooleanArray(0)
 
@@ -43,6 +46,7 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
             val n = maxOf(snap.deviceCount, 32)
             muzzleX = FloatArray(n); muzzleY = FloatArray(n); centerX = FloatArray(n); centerY = FloatArray(n); radius = FloatArray(n)
             topX = FloatArray(n); topY = FloatArray(n); normalX = FloatArray(n); normalY = FloatArray(n); drawn = BooleanArray(n)
+            mountX = FloatArray(n); mountY = FloatArray(n)
         }
         for (i in 0 until snap.deviceCount) { radius[i] = 0f; drawn[i] = false }
         val minX = c.visMinX(4f); val maxX = c.visMaxX(4f); val minY = c.visMinY(6f); val maxY = c.visMaxY(4f)
@@ -66,6 +70,7 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
             centerX[i] = cx; centerY[i] = cy; radius[i] = props.hitRadius
             val nx = geo[DeviceGeometry.NX]; val ny = geo[DeviceGeometry.NY]
             normalX[i] = nx; normalY[i] = ny
+            mountX[i] = geo[DeviceGeometry.X]; mountY[i] = geo[DeviceGeometry.Y]
             topX[i] = geo[DeviceGeometry.X] + nx * REACTOR_TOP; topY[i] = geo[DeviceGeometry.Y] + ny * REACTOR_TOP
             drawn[i] = true
             if (cx < minX || cx > maxX || cy < minY || cy > maxY) continue
@@ -218,17 +223,20 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
         c.disc(0f, cy, r + 0.12f, Palette.STEEL_LIGHT)
         sink.strokeCircle(0f, cy, r + 0.06f, 0.06f, Palette.withAlpha(Palette.STEEL_PALE, 0.4f))
         sink.fillCircle(0f, cy, r, Palette.CORE_BG)
-        sink.fillCircle(0f, cy, r * 0.97f, SceneContext.a(Palette.ENERGY_DEEP, 0.7f))
-        sink.fillCircle(0f, cy, r * 0.8f, SceneContext.a(Palette.ENERGY_MID, 0.8f * pulse))
-        sink.fillCircle(-0.04f, cy - 0.04f, r * 0.52f, SceneContext.a(Palette.ENERGY, 0.95f * pulse))
-        sink.fillCircle(-0.1f, cy - 0.1f, r * 0.24f, SceneContext.a(Palette.ENERGY_HI, pulse))
+        // Kern aus konzentrischen Scheiben (der Prototyp nutzt einen weichen Radialverlauf): Das Pulsieren moduliert die
+        // Helligkeit zwischen 73 % und 100 %, nicht die Deckkraft bis nahe Null, damit der Kern cyan leuchtet.
+        val pa = 0.55f + 0.45f * pulse
+        sink.fillCircle(0f, cy, r * 0.97f, SceneContext.a(Palette.ENERGY_DEEP, 0.9f))
+        sink.fillCircle(0f, cy, r * 0.8f, SceneContext.a(Palette.ENERGY_MID, 0.92f * pa))
+        sink.fillCircle(-0.04f, cy - 0.04f, r * 0.52f, SceneContext.a(Palette.ENERGY, 0.97f * pa))
+        sink.fillCircle(-0.1f, cy - 0.1f, r * 0.24f, SceneContext.a(Palette.ENERGY_HI, pa))
         sink.fillRect(-r, cy - 0.055f, 2f * r, 0.11f, Palette.STEEL)
         sink.fillRect(-0.055f, cy - r, 0.11f, 2f * r, Palette.STEEL)
         sink.fillRect(-r, cy - 0.055f, 2f * r, 0.025f, Palette.withAlpha(Palette.GLASS, 0.349f))
         sink.fillRect(-0.055f, cy - r, 0.025f, 2f * r, Palette.withAlpha(Palette.GLASS, 0.349f))
         sink.fillCircle(0f, cy, 0.1f, Palette.BOLT)
         sink.fillCircle(-0.25f, cy - 0.3f, 0.09f, Palette.withAlpha(Palette.WHITE, 0.349f))
-        sink.glow(0f, cy, 1.5f, SceneContext.a(Palette.ENERGY, 0.35f * pulse))
+        sink.glow(0f, cy, 1.7f, SceneContext.a(Palette.ENERGY, 0.55f * pulse))
         // Teamfarben-Lämpchen
         val lp = if (c.reduced) 0.8f else 0.6f + 0.4f * sin(c.time * 3f + team)
         c.disc(-0.82f, y0 + 0.32f, 0.1f, team)
@@ -390,7 +398,7 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
         sink.fillRect(0.48f, -1.26f, 0.04f, 0.44f, Palette.LAMP_FRAME)
         sink.fillRect(0.22f, -1.06f, 0.54f, 0.04f, Palette.LAMP_FRAME)
         sink.strokeRect(0.18f, -1.3f, 0.62f, 0.52f, c.px * 1.2f, SceneContext.OUTLINE)
-        sink.glow(0.5f, -1.04f, 0.9f, SceneContext.a(Palette.LAMP, 0.25f))
+        sink.glow(0.5f, -1.04f, 1.1f, SceneContext.a(Palette.LAMP, 0.5f))
         // Werkbank / Team
         sink.fillRect(0.18f, -0.62f, 0.62f, 0.4f, Palette.STEEL_SHADE)
         sink.fillRect(0.2f, -0.6f, 0.58f, 0.08f, team)
@@ -486,7 +494,7 @@ internal class DevicePainter(private val c: SceneContext, private val fx: FxStat
         }
         sink.fillRect(0.58f, -1.0f, 0.5f, 0.34f, Palette.RUST)
         sink.strokeRect(0.58f, -1.0f, 0.5f, 0.34f, c.px, SceneContext.OUTLINE)
-        sink.glow(-0.4f, -0.8f, 1.2f, SceneContext.a(Palette.FIRE_INNER, 0.18f))
+        sink.glow(-0.4f, -0.8f, 1.5f, SceneContext.a(Palette.FIRE_INNER, 0.4f))
         // Förderband mit Rollen
         c.box(-1.22f, -0.42f, 2.44f, 0.16f, Palette.STEEL_DARK)
         for (k in 0 until 9) {

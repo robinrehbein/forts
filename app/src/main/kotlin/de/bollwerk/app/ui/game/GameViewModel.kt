@@ -2,30 +2,48 @@ package de.bollwerk.app.ui.game
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import de.bollwerk.app.match.EndReason
+import de.bollwerk.app.game.GameController
+import de.bollwerk.app.game.GameRuntime
+import de.bollwerk.app.game.HudPresenter
+import de.bollwerk.app.game.HudUiState
+import de.bollwerk.app.game.MatchResults
+import de.bollwerk.app.game.ToolUiState
 import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
 import de.bollwerk.app.match.MatchResult
-import de.bollwerk.app.match.MatchStats
 import de.bollwerk.app.nav.Navigator
 import de.bollwerk.app.nav.Screen
+import de.bollwerk.app.settings.AppSettings
+import de.bollwerk.app.ui.game.hud.HudActions
+import de.bollwerk.engine.command.RejectReason
+import de.bollwerk.engine.sim.SimConfig
 import de.bollwerk.engine.sim.TurnMode
-import de.bollwerk.engine.sim.TurnPhase
-import de.bollwerk.engine.sim.TurnView
+import de.bollwerk.engine.tools.TapAction
+import de.bollwerk.engine.tools.ToolSelection
+import de.bollwerk.engine.view.HudModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Bestätigungspflichtige Aktionen im Pause-Dialog. */
 enum class PauseAction { RESTART, SURRENDER, MAIN_MENU }
 
 /**
- * Zustand der Hotseat-Übergabe (Mockup 6). Die Übergabe bleibt verdeckt, bis der nächste Spieler „Bereit" tippt;
- * erst danach läuft der Start-Countdown. [secondsLeft] ist `null`, solange noch auf „Bereit" gewartet wird.
+ * Zustand der Hotseat-Übergabe (Mockup 6). Die Übergabe bleibt verdeckt (und die Sim angehalten), bis der nächste Spieler
+ * „Bereit" tippt; erst dann läuft der Start-Countdown der Engine (`HudModel.handoverCountdown`). [secondsLeft] ist `null`,
+ * solange noch auf „Bereit" gewartet wird.
  */
 data class HandoverState(
     val player: Int,
@@ -36,7 +54,7 @@ data class HandoverState(
     val isCounting: Boolean get() = secondsLeft != null
 }
 
-/** Overlays über der Spielfläche. Solange eines aktiv ist, ruht die Simulation ([GameUiState.isSuspended]). */
+/** Overlays über der Spielfläche. Pause, Einstellungen und Bestätigung halten die Simulation an. */
 sealed interface GameOverlay {
     data object None : GameOverlay
     data object Pause : GameOverlay
@@ -45,28 +63,46 @@ sealed interface GameOverlay {
     data class Handover(val state: HandoverState) : GameOverlay
 }
 
+/** Kurzer Hinweis (Ablehnungsgrund) über dem HUD; [seq] unterscheidet gleiche Gründe nacheinander. */
+data class GameToast(val reason: RejectReason, val seq: Int)
+
 data class GameUiState(
     val config: MatchConfig,
     val overlay: GameOverlay = GameOverlay.None,
     /** Aktiver Spieler (ID): im Hotseat der Spieler am Zug (beginnt mit 0), gegen KI immer der Mensch. */
     val activePlayer: Int = config.humanPlayerId,
     val turn: Int = 1,
-    /** Erhöht sich bei jedem Neustart; WP9 baut dann Session und Surface neu auf. */
+    /** Erhöht sich bei jedem Neustart; die Spielfläche wird dann neu aufgebaut. */
     val matchGeneration: Int = 0,
+    /** Techbaum-Sheet offen (Mockup 5). */
+    val techTreeOpen: Boolean = false,
+    /** Die Partie wird gerade angelegt (Content, Einschwingen). */
+    val loading: Boolean = true,
 ) {
-    val isSuspended: Boolean get() = overlay != GameOverlay.None
+    /** Ein Overlay hält die Simulation an (Ausnahme: laufender Übergabe-Countdown). */
+    val isSuspended: Boolean
+        get() = when (overlay) {
+            GameOverlay.None -> false
+            is GameOverlay.Handover -> !overlay.state.isCounting
+            else -> true
+        }
+
     /** Die Spielfläche darf bei der Übergabe nicht sichtbar sein. */
     val boardHidden: Boolean get() = overlay is GameOverlay.Handover
 }
 
+/** Legt eine Partie an (teuer: Content, Einschwingen; läuft auf dem [GameViewModel.workDispatcher]). */
+fun interface GameRuntimeFactory {
+    fun create(config: MatchConfig): GameRuntime
+}
+
 /**
- * Spielfluss um die Spielfläche: Pause, Neustart, Aufgeben, Hotseat-Übergabe und Übergang zum Ergebnis.
- * Die eigentliche Spiellogik (Session, Eingabe, HUD) hängt WP9 an dieses ViewModel.
+ * Spielfluss um die Spielfläche: Partie anlegen (über [runtimeFactory] → `MatchSessions`/`MatchBootstrap`), Pause und
+ * Lebenszyklus (Hintergrund = Pause, die Sim arbeitet dann nicht), Neustart, Aufgeben, Hotseat-Übergabe (aus dem
+ * Zugzustand des HUD) und Übergang zum Ergebnis mit echten Kennzahlen.
  *
- * Zugzustand: Quelle der Wahrheit ist später der [TurnView] der Session (Phase, aktiver Spieler, Zugnummer, Restzeit).
- * WP9 meldet ihn über [onTurnView]; `phase == HANDOVER` öffnet die Übergabe. [endTurn] ist bis dahin nur der
- * Platzhalter-Weg: WP9 ersetzt ihn durch `Command.EndTurn` über `LocalInputSource.push`, und die Übergabe folgt dann
- * allein aus dem [TurnView] (das Zeitlimit des Zugs läuft in der Engine, nicht hier).
+ * HUD und Werkzeugzustand kommen als StateFlows vom Sim-Thread (HUD ~10 Hz) und werden hier mit dem [HudPresenter] zu
+ * [hud] zusammengeführt. Alle Eingaben gehen über den `GameController` (thread-sicher) an die Sim.
  *
  * [entryId] ist der Navigationseintrag dieses Spiels; Rückmeldungen (Partieende, Hauptmenü) wirken nur, solange
  * dieser Eintrag noch oben liegt.
@@ -74,26 +110,135 @@ data class GameUiState(
 class GameViewModel(
     config: MatchConfig,
     private val navigator: Navigator,
-    private val handoverSeconds: Int = HANDOVER_SECONDS,
-    private val tickMillis: Long = 1000L,
+    private val runtimeFactory: GameRuntimeFactory? = null,
+    settings: Flow<AppSettings> = emptyFlow(),
+    private val endDelayMillis: Long = END_DELAY_MS,
+    private val toastMillis: Long = TOAST_MS,
+    private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val decimalSeparator: Char = ',',
     private val entryId: Long = navigator.current.id,
-) : ViewModel() {
-    private val _state = MutableStateFlow(GameUiState(config))
+) : ViewModel(), HudActions {
+    private val _state = MutableStateFlow(GameUiState(config, loading = runtimeFactory != null))
     val state: StateFlow<GameUiState> = _state.asStateFlow()
 
-    @Volatile
-    private var countdown: Job? = null
+    private val _runtime = MutableStateFlow<GameRuntime?>(null)
+    /** Laufende Partie (null während des Anlegens). */
+    val runtime: StateFlow<GameRuntime?> = _runtime.asStateFlow()
 
-    fun pause() = _state.update { if (it.overlay == GameOverlay.None) it.copy(overlay = GameOverlay.Pause) else it }
-    fun resume() = _state.update { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.None) else it }
-    fun openSettings() = _state.update { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.Settings) else it }
-    fun closeSettings() = _state.update { if (it.overlay == GameOverlay.Settings) it.copy(overlay = GameOverlay.Pause) else it }
+    private val _hud = MutableStateFlow(HudUiState(hotseat = config.mode == GameMode.HOTSEAT))
+    /** Fertig aufbereitete HUD-Werte für Compose. */
+    val hud: StateFlow<HudUiState> = _hud.asStateFlow()
+
+    private val _toast = MutableStateFlow<GameToast?>(null)
+    val toast: StateFlow<GameToast?> = _toast.asStateFlow()
+
+    private val _settings = MutableStateFlow(AppSettings())
+    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    /** Läuft die Simulation gerade (für die Spielfläche: Render-Pause, Audio)? */
+    private val _simRunning = MutableStateFlow(false)
+    val simRunning: StateFlow<Boolean> = _simRunning.asStateFlow()
+
+    private var backgrounded = false
+    private var finished = false
+    private var runtimeJobs: List<Job> = emptyList()
+    private var toastJob: Job? = null
+    private var toastSeq = 0
+    /** Letzter HUD-Stand der Sim (Übergabe-Countdown, Befehlsrecht); null vor dem ersten. */
+    private var lastHud: HudModel? = null
+
+    init {
+        viewModelScope.launch {
+            settings.collect { s ->
+                _settings.value = s
+                _runtime.value?.controller?.setReleaseToFire(s.releaseToFire)
+            }
+        }
+        startRuntime()
+    }
+
+    // =============================================================================================
+    // Partie anlegen / abbauen
+    // =============================================================================================
+
+    private fun startRuntime() {
+        val factory = runtimeFactory ?: return
+        val generation = _state.value.matchGeneration
+        val config = _state.value.config
+        _state.update { it.copy(loading = true) }
+        val job = viewModelScope.launch {
+            val rt = withContext(workDispatcher) { factory.create(config) }
+            if (_state.value.matchGeneration != generation || finished) {
+                rt.stop()
+                return@launch
+            }
+            rt.controller.setReleaseToFire(_settings.value.releaseToFire)
+            _runtime.value = rt
+            _state.update { it.copy(loading = false) }
+            syncPause()
+            rt.start()
+            observe(rt)
+        }
+        runtimeJobs = listOf(job)
+    }
+
+    private fun observe(rt: GameRuntime) {
+        val c = rt.controller
+        val hotseat = c.session.hotseat
+        val jobs = ArrayList<Job>(runtimeJobs)
+        jobs += viewModelScope.launch {
+            combine(c.hud, c.toolState) { h, t -> h to t }.collect { (h, t) ->
+                _hud.value = HudPresenter.present(h, t, c.session.catalog, hotseat, decimalSeparator)
+                onHud(h)
+            }
+        }
+        jobs += viewModelScope.launch { c.messages.collect { showToast(it) } }
+        jobs += viewModelScope.launch {
+            val end = c.end.filterNotNull().first()
+            delay(endDelayMillis)
+            val result = MatchResults.from(_state.value.config, end.result) { p -> c.stats.statsFor(p, end.durationSeconds) }
+            if (result != null) finishMatch(result)
+        }
+        runtimeJobs = jobs
+    }
+
+    private fun stopRuntime() {
+        runtimeJobs.forEach { it.cancel() }
+        runtimeJobs = emptyList()
+        _runtime.value?.stop()
+        _runtime.value = null
+    }
+
+    // =============================================================================================
+    // Pause und Lebenszyklus
+    // =============================================================================================
+
+    /** Sim läuft genau dann, wenn kein anhaltendes Overlay offen ist und die App im Vordergrund ist. */
+    private fun syncPause() {
+        val run = !backgrounded && !_state.value.isSuspended && !_state.value.loading
+        _simRunning.value = run
+        _runtime.value?.controller?.setPaused(!run)
+    }
+
+    private inline fun updateState(f: (GameUiState) -> GameUiState) {
+        _state.update(f)
+        syncPause()
+    }
+
+    override fun pause() = updateState { if (it.overlay == GameOverlay.None) it.copy(overlay = GameOverlay.Pause, techTreeOpen = false) else it }
+    fun resume() = updateState { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.None) else it }
+    fun openSettings() = updateState { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.Settings) else it }
+    fun closeSettings() = updateState { if (it.overlay == GameOverlay.Settings) it.copy(overlay = GameOverlay.Pause) else it }
     fun requestConfirm(action: PauseAction) =
-        _state.update { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.Confirm(action)) else it }
-    fun cancelConfirm() = _state.update { if (it.overlay is GameOverlay.Confirm) it.copy(overlay = GameOverlay.Pause) else it }
+        updateState { if (it.overlay == GameOverlay.Pause) it.copy(overlay = GameOverlay.Confirm(action)) else it }
+    fun cancelConfirm() = updateState { if (it.overlay is GameOverlay.Confirm) it.copy(overlay = GameOverlay.Pause) else it }
 
-    /** Systemrücktaste: im Spiel pausieren, in Overlays eine Ebene zurück, bei der Übergabe nichts. */
+    /** Systemrücktaste: Sheet schließen, im Spiel pausieren, in Overlays eine Ebene zurück, bei der Übergabe nichts. */
     fun onSystemBack() {
+        if (_state.value.techTreeOpen) {
+            closeTechTree()
+            return
+        }
         when (_state.value.overlay) {
             GameOverlay.None -> pause()
             GameOverlay.Pause -> resume()
@@ -111,131 +256,200 @@ class GameViewModel(
                 val s = _state.value
                 // Gegen KI gibt immer der Mensch auf (egal ob Blau oder Rot), im Hotseat der Spieler am Zug.
                 val loser = if (s.config.mode == GameMode.VS_AI) s.config.humanPlayerId else s.activePlayer
-                finishMatch(MatchResult.surrender(s.config, loserPlayerId = loser))
+                val rt = _runtime.value
+                val duration = rt?.controller?.durationSeconds ?: 0
+                val base = MatchResult.surrender(s.config, loserPlayerId = loser)
+                val stats = rt?.controller?.stats?.statsFor(base.bannerPlayerId, duration)
+                finishMatch(if (stats != null) base.copy(stats = stats) else base)
             }
             PauseAction.MAIN_MENU -> {
-                countdown?.cancel()
+                stopRuntime()
                 navigator.popToRoot()
             }
         }
     }
 
     private fun restart() {
-        countdown?.cancel()
+        stopRuntime()
         _state.update {
-            GameUiState(it.config, matchGeneration = it.matchGeneration + 1)
+            GameUiState(it.config, matchGeneration = it.matchGeneration + 1, loading = runtimeFactory != null)
         }
+        _hud.value = HudUiState(hotseat = _state.value.config.mode == GameMode.HOTSEAT)
+        syncPause()
+        startRuntime()
     }
 
     /**
-     * Platzhalter (bis WP9): beendet den Zug und übergibt an den anderen Spieler. Später sendet dieser Aufruf nur
-     * `Command.EndTurn`; die Übergabe öffnet dann [onTurnView].
+     * Die App verlässt den Vordergrund (Home, Anruf, Benachrichtigungen): Sim anhalten, ein laufendes Spiel öffnet die Pause;
+     * in der Hotseat-Übergabe bleibt die Spielfläche verdeckt und ein laufender Start-Countdown wird abgebrochen (der Spieler
+     * muss erneut „Bereit" tippen).
      */
-    fun endTurn() {
+    fun onAppBackgrounded() {
+        backgrounded = true
+        // Renderer abgehängt: die Sim sammelt keine Fx/Ergebnisse für einen Leser an, der nicht zeichnet
+        _runtime.value?.controller?.runner?.setRendererAttached(false)
+        when (val overlay = _state.value.overlay) {
+            GameOverlay.None -> pause()
+            is GameOverlay.Handover -> if (overlay.state.isCounting) setHandover(overlay.state.copy(secondsLeft = null))
+            else -> Unit
+        }
+        syncPause()
+    }
+
+    /** Zurück im Vordergrund: die Sim bleibt angehalten, solange ein Overlay (Pause) offen ist. */
+    fun onAppForegrounded() {
+        backgrounded = false
+        _runtime.value?.controller?.runner?.setRendererAttached(true)
+        syncPause()
+    }
+
+    // =============================================================================================
+    // Hotseat
+    // =============================================================================================
+
+    /** Zug beenden (Hotseat): `Command.EndTurn` über die lokale Eingabe; die Übergabe folgt aus dem Zugzustand. */
+    override fun endTurn() {
         val s = _state.value
         if (s.config.mode != GameMode.HOTSEAT || s.overlay != GameOverlay.None) return
-        beginHandover(player = 1 - s.activePlayer, turn = s.turn + 1)
+        commanding?.endTurn()
     }
 
     /**
-     * Abgleich mit dem Zugzustand der Session (nur Hotseat). Eine Übergabe-Phase öffnet die Übergabe für den
-     * angegebenen Spieler, sonst werden aktiver Spieler und Zugnummer übernommen.
+     * Abgleich mit dem Zugzustand der Sim (nur Hotseat): Phase HANDOVER öffnet die Übergabe für den neuen aktiven Spieler
+     * (Sim hält an, bis „Bereit"); während des Countdowns folgt die Zahl `handoverCountdown`; die Spielphase schließt sie.
      */
-    fun onTurnView(view: TurnView) {
+    fun onHud(h: HudModel) {
+        lastHud = h
         val s = _state.value
-        if (s.config.mode != GameMode.HOTSEAT || view.mode != TurnMode.TURNS || view.activePlayer < 0) return
-        if (view.phase == TurnPhase.HANDOVER) {
-            val open = s.overlay as? GameOverlay.Handover
-            if (open == null || open.state.player != view.activePlayer || open.state.turn != view.turnNumber) {
-                beginHandover(view.activePlayer, view.turnNumber)
+        if (s.config.mode != GameMode.HOTSEAT || h.turnMode != TurnMode.TURNS || h.activePlayer < 0) return
+        val open = s.overlay as? GameOverlay.Handover
+        if (h.handover) {
+            if (open == null || open.state.player != h.activePlayer || open.state.turn != h.turnNumber) {
+                if (s.overlay == GameOverlay.None || open != null) beginHandover(h.activePlayer, h.turnNumber)
+            } else if (open.state.isCounting && h.handoverCountdown > 0 && h.handoverCountdown != open.state.secondsLeft) {
+                setHandover(open.state.copy(secondsLeft = h.handoverCountdown))
             }
         } else {
-            _state.update { it.copy(activePlayer = view.activePlayer, turn = view.turnNumber) }
+            if (open != null && open.state.isCounting) {
+                updateState { it.copy(overlay = GameOverlay.None, activePlayer = h.activePlayer, turn = h.turnNumber) }
+            } else if (open == null && (s.activePlayer != h.activePlayer || s.turn != h.turnNumber)) {
+                _state.update { it.copy(activePlayer = h.activePlayer, turn = h.turnNumber) }
+            }
         }
     }
 
     private fun beginHandover(player: Int, turn: Int) {
-        countdown?.cancel()
-        _state.update {
+        updateState {
             it.copy(
                 activePlayer = player,
                 turn = turn,
-                overlay = GameOverlay.Handover(HandoverState(player, turn, secondsLeft = null, totalSeconds = handoverSeconds)),
+                techTreeOpen = false,
+                overlay = GameOverlay.Handover(HandoverState(player, turn, secondsLeft = null, totalSeconds = handoverTotalSeconds())),
             )
         }
     }
 
+    private fun setHandover(h: HandoverState) {
+        updateState { st -> if (st.overlay is GameOverlay.Handover) st.copy(overlay = GameOverlay.Handover(h)) else st }
+    }
+
     /**
-     * „Bereit": erst jetzt läuft der Start-Countdown (Spielfläche bleibt verdeckt); bei 0 wird sie freigegeben.
-     * Ohne Eingabe bleibt die Übergabe beliebig lange stehen.
+     * „Bereit": die Sim läuft weiter, der Countdown der Engine zählt 3-2-1, danach gibt die Spielphase die Fläche frei.
+     * Die Startzahl ist der Rest der Engine (`HudModel.handoverCountdown`; nach abgebrochenem Countdown z. B. 1), sonst die
+     * volle Übergabezeit.
      */
     fun onHandoverReady() {
         val open = _state.value.overlay as? GameOverlay.Handover ?: return
         if (open.state.isCounting) return
-        if (handoverSeconds <= 0) {
-            finishHandover()
-            return
+        val h = lastHud
+        val left = if (h != null && h.handover && h.activePlayer == open.state.player && h.handoverCountdown > 0) {
+            h.handoverCountdown
+        } else {
+            open.state.totalSeconds
         }
-        setCountdown(handoverSeconds)
-        countdown?.cancel()
-        countdown = viewModelScope.launch {
-            var left = handoverSeconds
-            while (left > 0) {
-                delay(tickMillis)
-                left--
-                if (left > 0) setCountdown(left)
-            }
-            finishHandover()
-        }
+        setHandover(open.state.copy(secondsLeft = left.coerceAtLeast(1)))
     }
 
-    private fun setCountdown(seconds: Int?) {
-        _state.update { st ->
-            val o = st.overlay
-            if (o is GameOverlay.Handover) st.copy(overlay = GameOverlay.Handover(o.state.copy(secondsLeft = seconds))) else st
-        }
+    /** Volle Übergabezeit in s aus der Sim-Konfiguration der Partie (`turn.handoverTicks · dt`), nicht als App-Konstante. */
+    private fun handoverTotalSeconds(): Int {
+        val cfg = _runtime.value?.controller?.runner?.state?.config ?: SimConfig.DEFAULT
+        return handoverSecondsOf(cfg)
     }
 
-    private fun finishHandover() {
-        countdown?.cancel()
-        _state.update { if (it.overlay is GameOverlay.Handover) it.copy(overlay = GameOverlay.None) else it }
-    }
+    // =============================================================================================
+    // HUD-Aktionen (UI-Thread → GameController)
+    // =============================================================================================
+
+    private val controller get() = _runtime.value?.controller
 
     /**
-     * Die App verlässt den Vordergrund (Home, Anruf, Benachrichtigungen): ein laufendes Spiel pausiert; in der
-     * Hotseat-Übergabe bleibt die Spielfläche verdeckt und ein laufender Start-Countdown wird abgebrochen
-     * (der Spieler muss erneut „Bereit" tippen).
+     * Werkzeug und Befehle nur mit Befehlsrecht (`HudModel.canCommand`: Spiel läuft; im Hotseat eigener Zug in der
+     * Spielphase). In der Auflösungs-/Übergabephase oder nach Spielende sendet das HUD nichts (die Leisten sind ausgegraut).
      */
-    fun onAppBackgrounded() {
-        when (val overlay = _state.value.overlay) {
-            GameOverlay.None -> pause()
-            is GameOverlay.Handover -> if (overlay.state.isCounting) {
-                countdown?.cancel()
-                setCountdown(null)
-            }
-            else -> Unit
+    private val commanding: GameController? get() = controller?.takeIf { _hud.value.canCommand }
+
+    override fun selectTool(selection: ToolSelection) { commanding?.selectTool(selection) }
+    override fun enterAimMode() { commanding?.enterAimMode() }
+    override fun enterBuildMode() { commanding?.selectTool(ToolSelection.None) }
+    override fun fire() { commanding?.fire() }
+    override fun undo() { commanding?.undo() }
+    override fun cycleWeapon() { commanding?.cycleWeapon(1) }
+    override fun setPower(power: Float) { commanding?.setPower(power) }
+    override fun setDoorsOpen(open: Boolean) { commanding?.setDoorsOpen(open) }
+    override fun chooseContext(action: TapAction) {
+        val c = commanding
+        if (c != null) c.chooseContext(action) else controller?.dismissContext()
+    }
+    override fun dismissContext() { controller?.dismissContext() }
+
+    override fun openTechTree() = _state.update { if (it.overlay == GameOverlay.None) it.copy(techTreeOpen = true) else it }
+    override fun closeTechTree() = _state.update { it.copy(techTreeOpen = false) }
+
+    /** „Bauen" im Techbaum: Sheet schließen, Geräte-Werkzeug für das Gebäude wählen (Platzieren wie jedes Gerät). */
+    override fun buildTech(deviceIndex: Int) {
+        closeTechTree()
+        selectTool(ToolSelection.Device(deviceIndex))
+    }
+
+    private fun showToast(reason: RejectReason) {
+        toastJob?.cancel()
+        _toast.value = GameToast(reason, ++toastSeq)
+        toastJob = viewModelScope.launch {
+            delay(toastMillis)
+            _toast.value = null
         }
     }
 
-    /** Wird von der Spielschleife (WP9) bei Partieende aufgerufen; wirkt nur, solange dieses Spiel oben liegt. */
+    // =============================================================================================
+    // Ende
+    // =============================================================================================
+
+    /** Partieende (Sim-Ergebnis, Aufgeben); wirkt nur, solange dieses Spiel oben liegt. */
     fun finishMatch(result: MatchResult) {
-        if (navigator.replaceTop(Screen.Result(result), from = entryId)) countdown?.cancel()
+        if (finished) return
+        if (navigator.replaceTop(Screen.Result(result), from = entryId)) {
+            finished = true
+            stopRuntime()
+        }
     }
 
-    /** Für den Platzhalter-Screen: schließt die Partie mit Beispielwerten ab. */
-    fun finishWithSampleStats(humanWins: Boolean) {
-        val config = _state.value.config
-        val winner = if (humanWins) config.humanPlayerId else 1 - config.humanPlayerId
-        val reason = if (humanWins) EndReason.ENEMY_REACTOR_DESTROYED else EndReason.OWN_REACTOR_DESTROYED
-        finishMatch(MatchResult(config, winner, reason, SAMPLE_STATS))
-    }
+    /** Werkzeugzustand (Tests/Vorschau). */
+    val toolState: ToolUiState? get() = controller?.toolState?.value
 
     override fun onCleared() {
-        countdown?.cancel()
+        stopRuntime()
     }
 
     companion object {
-        const val HANDOVER_SECONDS = 3
-        val SAMPLE_STATS = MatchStats(durationSeconds = 8 * 60 + 42, shots = 23, hits = 17, beamsBuilt = 64, beamsLost = 19)
+        /** Übergabe-Countdown in ganzen Sekunden (aufgerundet, Float-Toleranz: 180 · (1/60 f) ist 3,0000002). */
+        fun handoverSecondsOf(cfg: SimConfig): Int {
+            val s = cfg.turn.handoverTicks * cfg.dt
+            val i = s.toInt()
+            return (if (s - i > 1e-3f) i + 1 else i).coerceAtLeast(1)
+        }
+
+        /** Nach dem Sieg/Niederlage-Moment noch kurz die Explosion zeigen. */
+        const val END_DELAY_MS = 1800L
+        const val TOAST_MS = 2200L
     }
 }

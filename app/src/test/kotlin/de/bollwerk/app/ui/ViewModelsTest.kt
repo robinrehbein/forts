@@ -17,9 +17,11 @@ import de.bollwerk.app.ui.components.SliderDragState
 import de.bollwerk.app.ui.game.GameOverlay
 import de.bollwerk.app.ui.game.HandoverState
 import de.bollwerk.app.ui.handover.handoverTipIndex
+import de.bollwerk.engine.sim.SimConfig
+import de.bollwerk.engine.sim.TurnConfig
 import de.bollwerk.engine.sim.TurnMode
 import de.bollwerk.engine.sim.TurnPhase
-import de.bollwerk.engine.sim.TurnView
+import de.bollwerk.engine.view.HudModel
 import de.bollwerk.app.ui.game.GameViewModel
 import de.bollwerk.app.ui.game.PauseAction
 import de.bollwerk.app.ui.menu.MainMenuViewModel
@@ -261,18 +263,18 @@ class GameViewModelTest : ViewModelTestBase() {
 
     private val red = MatchConfig(team = TeamColor.RED, seed = 9)
 
-    private fun vm(c: MatchConfig = config, seconds: Int = 3): GameViewModel {
+    private fun vm(c: MatchConfig = config): GameViewModel {
         nav.push(Screen.Game(c))
-        return GameViewModel(c, nav, handoverSeconds = seconds, tickMillis = 1000)
+        return GameViewModel(c, nav)
     }
 
-    private fun turnView(player: Int, turn: Int, phase: TurnPhase, mode: TurnMode = TurnMode.TURNS) = object : TurnView {
-        override val mode = mode
-        override val activePlayer = player
-        override val turnNumber = turn
-        override val ticksLeft = 0
-        override val phase = phase
-    }
+    /** Zugzustand der Sim, wie ihn der `GameController` im HUD meldet. */
+    private fun hud(player: Int, turn: Int, phase: TurnPhase, countdown: Int = 0, mode: TurnMode = TurnMode.TURNS) = HudModel(
+        turnMode = mode, activePlayer = if (mode == TurnMode.TURNS) player else -1, turnNumber = turn, turnPhase = phase,
+        handover = mode == TurnMode.TURNS && phase == TurnPhase.HANDOVER, handoverCountdown = countdown,
+    )
+
+    private fun handover(vm: GameViewModel) = assertIs<GameOverlay.Handover>(vm.state.value.overlay).state
 
     @Test
     fun pauseResumeAndSuspendedFlag() {
@@ -281,8 +283,10 @@ class GameViewModelTest : ViewModelTestBase() {
         vm.pause()
         assertEquals(GameOverlay.Pause, vm.state.value.overlay)
         assertTrue(vm.state.value.isSuspended)
+        assertFalse(vm.simRunning.value)
         vm.resume()
         assertEquals(GameOverlay.None, vm.state.value.overlay)
+        assertTrue(vm.simRunning.value)
     }
 
     @Test
@@ -293,6 +297,16 @@ class GameViewModelTest : ViewModelTestBase() {
         vm.onSystemBack()
         assertEquals(GameOverlay.None, vm.state.value.overlay)
         assertEquals(Screen.Game(config), nav.current.screen)
+    }
+
+    @Test
+    fun systemBackClosesTheTechTreeFirst() {
+        val vm = vm()
+        vm.openTechTree()
+        assertTrue(vm.state.value.techTreeOpen)
+        vm.onSystemBack()
+        assertFalse(vm.state.value.techTreeOpen)
+        assertEquals(GameOverlay.None, vm.state.value.overlay)
     }
 
     @Test
@@ -426,55 +440,55 @@ class GameViewModelTest : ViewModelTestBase() {
     @Test
     fun hotseatHandoverStaysHiddenUntilReadyIsTapped() {
         val vm = vm(hotseat)
-        vm.endTurn()
-        val first = assertIs<GameOverlay.Handover>(vm.state.value.overlay).state
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
+        val first = handover(vm)
         assertEquals(1, first.player)
         assertEquals(2, first.turn)
         assertEquals(null, first.secondsLeft, "no countdown before Bereit")
         assertTrue(vm.state.value.boardHidden)
+        assertFalse(vm.simRunning.value, "sim waits for Bereit")
         advanceMillis(60_000)
-        val later = assertIs<GameOverlay.Handover>(vm.state.value.overlay).state
-        assertEquals(null, later.secondsLeft)
+        assertEquals(null, handover(vm).secondsLeft)
         assertTrue(vm.state.value.boardHidden, "board must stay covered without input")
         assertEquals(1, vm.state.value.activePlayer)
     }
 
     @Test
-    fun readyStartsCountdownAndRevealsBoardAtZero() {
+    fun readyRunsTheSimCountdownAndRevealsTheBoardInThePlayPhase() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onHandoverReady()
-        assertEquals(3, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
-        advanceMillis(1000)
-        assertEquals(2, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
-        advanceMillis(1000)
-        assertEquals(1, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
+        assertEquals(3, handover(vm).secondsLeft)
+        assertTrue(vm.simRunning.value, "the engine counts the handover down")
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 2))
+        assertEquals(2, handover(vm).secondsLeft)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 1))
+        assertEquals(1, handover(vm).secondsLeft)
         assertTrue(vm.state.value.boardHidden)
-        advanceMillis(1000)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.PLAY))
         assertEquals(GameOverlay.None, vm.state.value.overlay)
         assertEquals(1, vm.state.value.activePlayer)
+        assertEquals(2, vm.state.value.turn)
     }
 
     @Test
     fun secondReadyTapDuringCountdownDoesNotRestartIt() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onHandoverReady()
-        advanceMillis(1000)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 2))
         vm.onHandoverReady()
-        assertEquals(2, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
-        advanceMillis(2000)
-        assertEquals(GameOverlay.None, vm.state.value.overlay)
+        assertEquals(2, handover(vm).secondsLeft)
     }
 
     @Test
     fun nextTurnHandsBackToPlayerZero() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onHandoverReady()
-        advanceMillis(3000)
-        vm.endTurn()
-        val h = assertIs<GameOverlay.Handover>(vm.state.value.overlay).state
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.PLAY))
+        vm.onHud(hud(player = 0, turn = 3, phase = TurnPhase.HANDOVER, countdown = 3))
+        val h = handover(vm)
         assertEquals(0, h.player)
         assertEquals(3, h.turn)
     }
@@ -484,8 +498,13 @@ class GameViewModelTest : ViewModelTestBase() {
         val vm = vm()
         vm.onAppBackgrounded()
         assertEquals(GameOverlay.Pause, vm.state.value.overlay)
+        assertFalse(vm.simRunning.value)
         vm.onAppBackgrounded()
         assertEquals(GameOverlay.Pause, vm.state.value.overlay)
+        vm.onAppForegrounded()
+        assertFalse(vm.simRunning.value, "still paused until the player resumes")
+        vm.resume()
+        assertTrue(vm.simRunning.value)
     }
 
     @Test
@@ -500,69 +519,81 @@ class GameViewModelTest : ViewModelTestBase() {
     @Test
     fun backgroundingWhileHandoverWaitsKeepsBoardHidden() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onAppBackgrounded()
         advanceMillis(10_000)
         assertTrue(vm.state.value.boardHidden)
-        assertEquals(null, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
+        assertEquals(null, handover(vm).secondsLeft)
     }
 
     @Test
     fun backgroundingDuringHandoverCountdownAbortsItAndNeverRevealsTheBoard() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onHandoverReady()
-        advanceMillis(1000)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 2))
         vm.onAppBackgrounded()
-        assertEquals(null, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
-        advanceMillis(30_000)
-        assertTrue(vm.state.value.boardHidden, "countdown must not tick in the background")
-        // Nach der Rückkehr muss erneut „Bereit" getippt werden.
+        assertEquals(null, handover(vm).secondsLeft)
+        assertFalse(vm.simRunning.value, "no countdown in the background")
+        assertTrue(vm.state.value.boardHidden)
+        vm.onAppForegrounded()
+        assertFalse(vm.simRunning.value, "must tap Bereit again")
         vm.onHandoverReady()
-        assertEquals(3, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
-        advanceMillis(3000)
+        assertTrue(vm.simRunning.value)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.PLAY))
         assertEquals(GameOverlay.None, vm.state.value.overlay)
     }
 
     @Test
-    fun zeroSecondHandoverRevealsOnReady() {
-        val vm = vm(hotseat, seconds = 0)
-        vm.endTurn()
-        vm.onHandoverReady()
-        assertEquals(GameOverlay.None, vm.state.value.overlay)
-    }
-
-    @Test
-    fun turnViewHandoverPhaseOpensHandoverForThatPlayer() {
+    fun handoverOpensForThatPlayerAndRepeatedReportsKeepTheCountdown() {
         val vm = vm(hotseat)
-        vm.onTurnView(turnView(player = 1, turn = 4, phase = TurnPhase.HANDOVER))
-        val h = assertIs<GameOverlay.Handover>(vm.state.value.overlay).state
-        assertEquals(HandoverState(player = 1, turn = 4, secondsLeft = null, totalSeconds = 3), h)
+        vm.onHud(hud(player = 1, turn = 4, phase = TurnPhase.HANDOVER, countdown = 3))
+        assertEquals(HandoverState(player = 1, turn = 4, secondsLeft = null, totalSeconds = 3), handover(vm))
         assertEquals(1, vm.state.value.activePlayer)
         assertEquals(4, vm.state.value.turn)
-        // Wiederholte Meldung derselben Übergabe setzt einen laufenden Countdown nicht zurück.
         vm.onHandoverReady()
-        advanceMillis(1000)
-        vm.onTurnView(turnView(player = 1, turn = 4, phase = TurnPhase.HANDOVER))
-        assertEquals(2, assertIs<GameOverlay.Handover>(vm.state.value.overlay).state.secondsLeft)
+        vm.onHud(hud(player = 1, turn = 4, phase = TurnPhase.HANDOVER, countdown = 2))
+        vm.onHud(hud(player = 1, turn = 4, phase = TurnPhase.HANDOVER, countdown = 2))
+        assertEquals(2, handover(vm).secondsLeft)
     }
 
     @Test
-    fun turnViewPlayPhaseOnlySyncsPlayerAndTurn() {
+    fun handoverLengthComesFromTheSimConfig() {
+        assertEquals(3, GameViewModel.handoverSecondsOf(SimConfig.DEFAULT), "180 ticks at 60 Hz")
+        assertEquals(5, GameViewModel.handoverSecondsOf(SimConfig(turn = TurnConfig(handoverTicks = 300))))
+        assertEquals(2, GameViewModel.handoverSecondsOf(SimConfig(turn = TurnConfig(handoverTicks = 61))), "rounded up")
+    }
+
+    @Test
+    fun readyAfterAnAbortedCountdownStartsFromTheEngineRemainder() {
         val vm = vm(hotseat)
-        vm.onTurnView(turnView(player = 1, turn = 2, phase = TurnPhase.PLAY))
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
+        vm.onHandoverReady()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 1))
+        vm.onAppBackgrounded()
+        vm.onAppForegrounded()
+        assertEquals(null, handover(vm).secondsLeft)
+        vm.onHandoverReady()
+        assertEquals(1, handover(vm).secondsLeft, "the engine has 1 s left, not a fresh 3")
+        assertEquals(3, handover(vm).totalSeconds)
+    }
+
+    @Test
+    fun playPhaseOnlySyncsPlayerAndTurn() {
+        val vm = vm(hotseat)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.PLAY))
         assertEquals(GameOverlay.None, vm.state.value.overlay)
         assertEquals(1, vm.state.value.activePlayer)
         assertEquals(2, vm.state.value.turn)
     }
 
     @Test
-    fun turnViewIsIgnoredAgainstAiAndInRealtime() {
+    fun turnStateIsIgnoredAgainstAiAndInRealtime() {
         val vm = vm()
-        vm.onTurnView(turnView(player = 1, turn = 2, phase = TurnPhase.HANDOVER))
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         assertEquals(GameOverlay.None, vm.state.value.overlay)
         val hs = vm(hotseat)
-        hs.onTurnView(turnView(player = -1, turn = 1, phase = TurnPhase.HANDOVER, mode = TurnMode.REALTIME))
+        hs.onHud(hud(player = 1, turn = 1, phase = TurnPhase.HANDOVER, mode = TurnMode.REALTIME))
         assertEquals(GameOverlay.None, hs.state.value.overlay)
     }
 
@@ -577,7 +608,7 @@ class GameViewModelTest : ViewModelTestBase() {
     @Test
     fun backDuringHandoverIsIgnoredAndPauseCannotOpen() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onSystemBack()
         vm.pause()
         assertIs<GameOverlay.Handover>(vm.state.value.overlay)
@@ -586,9 +617,9 @@ class GameViewModelTest : ViewModelTestBase() {
     @Test
     fun hotseatSurrenderMakesActivePlayerLose() {
         val vm = vm(hotseat)
-        vm.endTurn()
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.HANDOVER, countdown = 3))
         vm.onHandoverReady()
-        advanceMillis(3000)
+        vm.onHud(hud(player = 1, turn = 2, phase = TurnPhase.PLAY))
         vm.pause()
         vm.requestConfirm(PauseAction.SURRENDER)
         vm.confirm()
@@ -606,13 +637,16 @@ class GameViewModelTest : ViewModelTestBase() {
     }
 
     @Test
-    fun sampleFinishRespectsHumanSide() {
-        val red = MatchConfig(team = TeamColor.RED)
-        val vm = vm(red)
-        vm.finishWithSampleStats(humanWins = true)
-        val result = assertIs<Screen.Result>(nav.current.screen).result
-        assertEquals(1, result.winnerPlayerId)
-        assertTrue(result.isVictory)
+    fun techTreeOnlyOpensDuringPlay() {
+        val vm = vm()
+        vm.pause()
+        vm.openTechTree()
+        assertFalse(vm.state.value.techTreeOpen)
+        vm.resume()
+        vm.openTechTree()
+        assertTrue(vm.state.value.techTreeOpen)
+        vm.buildTech(5)
+        assertFalse(vm.state.value.techTreeOpen, "Bauen closes the sheet")
     }
 }
 

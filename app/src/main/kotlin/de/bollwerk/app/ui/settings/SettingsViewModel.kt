@@ -20,6 +20,7 @@ class SettingsViewModel(private val repo: SettingsRepository) : ViewModel() {
     fun setLeftHanded(v: Boolean) = update { it.copy(leftHanded = v) }
     fun setReleaseToFire(v: Boolean) = update { it.copy(releaseToFire = v) }
     fun setReducedEffects(v: Boolean) = update { it.copy(reducedEffects = v) }
+    fun setHaptics(v: Boolean) = update { it.copy(haptics = v) }
 
     /** Das Repository wendet [transform] atomar auf den gespeicherten Stand an, nicht auf die Anzeige. */
     private fun update(transform: (AppSettings) -> AppSettings) {

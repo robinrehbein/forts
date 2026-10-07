@@ -55,6 +55,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         onLeftHanded = viewModel::setLeftHanded,
         onReleaseToFire = viewModel::setReleaseToFire,
         onReducedEffects = viewModel::setReducedEffects,
+        onHaptics = viewModel::setHaptics,
     )
 }
 
@@ -72,6 +73,7 @@ fun SettingsContent(
     onLeftHanded: (Boolean) -> Unit,
     onReleaseToFire: (Boolean) -> Unit,
     onReducedEffects: (Boolean) -> Unit,
+    onHaptics: (Boolean) -> Unit = {},
 ) {
     BlueprintBackground {
         Column(Modifier.fillMaxSize().screenPadding(24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -108,6 +110,10 @@ fun SettingsContent(
                                 ToggleRow(
                                     R.drawable.ic_release, stringResource(R.string.settings_release_fire),
                                     stringResource(R.string.settings_release_fire_desc), settings.releaseToFire, onReleaseToFire,
+                                )
+                                ToggleRow(
+                                    R.drawable.ic_vibration, stringResource(R.string.settings_haptics),
+                                    stringResource(R.string.settings_haptics_desc), settings.haptics, onHaptics,
                                 )
                             }
                         }

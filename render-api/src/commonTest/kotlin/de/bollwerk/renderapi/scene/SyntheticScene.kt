@@ -1,5 +1,6 @@
 package de.bollwerk.renderapi.scene
 
+import de.bollwerk.engine.math.DeviceGeometry
 import de.bollwerk.engine.sim.BeamFlags
 import de.bollwerk.engine.sim.DeviceFlags
 import de.bollwerk.engine.sim.DeviceProps
@@ -100,6 +101,16 @@ class SyntheticScene(val width: Float = 120f, canyon: FloatArray = floatArrayOf(
         val dx = snap.nodeX[b] - snap.nodeX[a]
         // Normale (-dy, dx)/L zeigt nach oben, wenn dx < 0; sonst gegenüberliegende Seite
         snap.deviceFlags[i] = DeviceFlags.ALIVE or (if (dx > 0f) DeviceFlags.SIDE_NEG else 0)
+        // Lage wie die Engine sie je Tick schreibt (Fußpunkt und Normale der Montagefläche)
+        val geo = FloatArray(DeviceGeometry.SIZE)
+        val props = tables.devices[type]
+        val mat = snap.beamMaterial[beam]
+        DeviceGeometry.mountAt(
+            snap.nodeX[a], snap.nodeY[a], snap.nodeX[b], snap.nodeY[b], t, (snap.deviceFlags[i] and DeviceFlags.SIDE_NEG) != 0,
+            tables.materials[mat].thickness, props.mountOffset, props.pivotOffset, props.barrelLength, aimRad, geo,
+        )
+        snap.deviceX[i] = geo[DeviceGeometry.X]; snap.deviceY[i] = geo[DeviceGeometry.Y]
+        snap.deviceNX[i] = geo[DeviceGeometry.NX]; snap.deviceNY[i] = geo[DeviceGeometry.NY]
         return i
     }
 

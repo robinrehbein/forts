@@ -16,8 +16,6 @@ import kotlin.math.sin
 internal class TerrainPainter(private val c: SceneContext, private val info: WorldInfo) {
     private val terrain = info.map.terrain
     private val strata = Palette.STRATA
-    private val fogColors = intArrayOf(Palette.withAlpha(Palette.FOG_PLUM, 0f), Palette.withAlpha(Palette.FOG_PLUM, 0.451f), Palette.withAlpha(Palette.FOG_PLUM_DEEP, 0.851f))
-    private val fogStops = floatArrayOf(0f, 0.6f, 1f)
     private val concreteColors = intArrayOf(Palette.CONCRETE_HI, Palette.CONCRETE_MID, Palette.CONCRETE_LO)
     private val rng = RenderRng(17)
 
@@ -82,16 +80,71 @@ internal class TerrainPainter(private val c: SceneContext, private val info: Wor
         }
         sink.fillPolygon(e, k, Palette.withAlpha(Palette.EARTH, 0.851f))
 
-        // Kluft-Nebel (auch vor dem Hintergrund): nach unten dunkler
-        if (info.hasValley) {
-            val vx0 = info.valleyX0 - 1f
-            val vw = info.valleyX1 - info.valleyX0 + 2f
-            val top = info.groundY + 2f
-            sink.gradientRect(vx0, top, vw, info.maxH + 1f - top, 0f, top, 0f, info.maxH + 1f, fogColors, fogStops)
-        }
-
         drawGrass(i0, i1, xa, xb)
         drawOre()
+        if (info.hasValley) drawCanyonFog()
+    }
+
+
+    /**
+     * Kluft-Nebel (Stil-Bibel §6: nach unten dunkler und neblig). Er besteht aus übereinandergelegten Flächen, die
+     * jeweils **nur den Luftraum der Kluft unterhalb einer Höhenlinie** füllen (Polygon aus der Höhenlinie und der
+     * Geländekontur): nichts liegt über den Kluftwänden, die Gesteinsschichten laufen ungestört bis zur Wand. Die
+     * Alphas addieren sich zu dem Tiefenverlauf [fogAlpha].
+     */
+    internal fun drawCanyonFog() {
+        val top = info.groundY + 0.5f
+        val bottom = info.maxH
+        if (bottom - top < 1f) return
+        var prev = 0f
+        for (k in 0 until FOG_LAYERS) {
+            val y = top + (bottom - top) * k / FOG_LAYERS
+            val depth = (k + 1f) / FOG_LAYERS
+            val target = fogAlpha(depth)
+            val a = 1f - (1f - target) / (1f - prev)
+            prev = target
+            if (a <= 0.001f) continue
+            val col = PixelCanvas.lerpColor(Palette.FOG_PLUM, Palette.FOG_PLUM_DEEP, depth)
+            fillCanyonAir(y, SceneContext.a(col, a))
+        }
+    }
+
+    /** Kumulative Nebeldichte in Abhängigkeit von der Tiefe 0..1 (0 → 0, 0,6 → 0,45, 1 → 0,85). */
+    internal fun fogAlpha(depth: Float): Float =
+        if (depth < 0.6f) 0.451f * depth / 0.6f else 0.451f + (0.851f - 0.451f) * (depth - 0.6f) / 0.4f
+
+    /**
+     * Füllt den Luftraum der Kluft unterhalb der Höhenlinie [y] mit [color]: **je zusammenhängendem Becken** (Lauf von
+     * Geländeproben tiefer als [y] im Bereich der Kluft) ein Polygon aus den beiden Schnittpunkten der Linie mit der
+     * Geländekontur und den Konturpunkten dazwischen. Eine Felsnadel in der Kluftmitte teilt sie damit in zwei
+     * Becken, und beide werden gefüllt. Läuft ein Becken aus dem Gelände (kein Rand zum Abgrenzen), bekommt es keinen Nebel.
+     */
+    private fun fillCanyonAir(y: Float, color: Int) {
+        val hs = terrain.heights
+        val step = terrain.step
+        val lo = ((info.valleyX0 - terrain.x0) / step + 0.5f).toInt().coerceIn(0, hs.size - 1)
+        val hi = ((info.valleyX1 - terrain.x0) / step + 0.5f).toInt().coerceIn(0, hs.size - 1)
+        var i = lo
+        while (i <= hi) {
+            if (hs[i] <= y) { i++; continue }
+            var l = i
+            while (l > 0 && hs[l - 1] > y) l--
+            var r = i
+            while (r < hs.size - 1 && hs[r + 1] > y) r++
+            i = r + 1
+            if (l == 0 || r == hs.size - 1) continue
+            c.ensurePoly(r - l + 5)
+            val p = c.poly
+            // linker Schnittpunkt zwischen Probe l-1 (≤ y) und l (> y), rechter zwischen r und r+1
+            val tl = (y - hs[l - 1]) / (hs[l] - hs[l - 1])
+            p[0] = terrain.x0 + (l - 1) * step + tl * step; p[1] = y
+            val tr = (y - hs[r]) / (hs[r + 1] - hs[r])
+            p[2] = terrain.x0 + r * step + tr * step; p[3] = y
+            var n = 2
+            // Kontur von rechts nach links; die Schnittpunkte liegen exakt auf der Kontur
+            for (k in r downTo l) { p[n * 2] = terrain.x0 + k * step; p[n * 2 + 1] = hs[k]; n++ }
+            c.sink.fillPolygon(p, n, color)
+        }
     }
 
     private fun drawGrit(xa: Float, xb: Float, bottom: Float) {
@@ -135,8 +188,14 @@ internal class TerrainPainter(private val c: SceneContext, private val info: Wor
             val x1 = x0 + step
             val y0 = terrain.heights[i]
             val y1 = terrain.heights[i + 1]
-            sink.line(x0, y0, x1, y1, 0.24f, green, true)
-            sink.line(x0, y0 - 0.08f, x1, y1 - 0.08f, 0.07f, light, true)
+            if (abs(y1 - y0) > step * STEEP) {
+                // Kluftwand: nackter Fels statt Gras, oben vom Abendlicht gestreift
+                sink.line(x0, y0, x1, y1, 0.24f, Palette.DIRT, true)
+                sink.line(x0 - 0.1f, y0, x1 - 0.1f, y1, 0.07f, Palette.withAlpha(Palette.GLOW_PEACH, 0.3f), true)
+            } else {
+                sink.line(x0, y0, x1, y1, 0.24f, green, true)
+                sink.line(x0, y0 - 0.08f, x1, y1 - 0.08f, 0.07f, light, true)
+            }
         }
         // Büschel (nur auf flachen Stücken)
         val tp = c.poly2
@@ -207,7 +266,12 @@ internal class TerrainPainter(private val c: SceneContext, private val info: Wor
         }
     }
 
-    /** Betonsockel unter verankerten Knoten (zu 60 % im Boden, Ankerplatte, Teamstreifen). */
+    /**
+     * Betonsockel unter verankerten Knoten (Stil-Bibel §4): trapezförmig, zu 60 % im Boden versenkt (der versenkte Teil
+     * wird als Querschnitt in dunklerem Beton gezeigt, nicht als dunkler Block), Stahl-Ankerplatte mit 2 Ankerbolzen
+     * oben, schmaler Teamstreifen. Nur an Fundament-Knoten ([NodeFlags.ANCHORED]); Knoten, an denen nur ein Seil hängt
+     * (Seil-Anker), bekommen statt des Sockels einen kleinen Ankerstein.
+     */
     fun drawFoundations(snap: FrameSnapshot) {
         val sink = c.sink
         val tp = c.poly2
@@ -219,36 +283,90 @@ internal class TerrainPainter(private val c: SceneContext, private val info: Wor
             val x = snap.nodeX[i]
             if (x < xmin || x > xmax) continue
             val y = terrain.heightAt(x)
-            val top = y - 0.42f
-            val bot = y + 0.64f
-            // Schlagschatten
-            tp[0] = x - 0.5f; tp[1] = top + 0.05f; tp[2] = x + 0.62f; tp[3] = top + 0.05f; tp[4] = x + 0.82f; tp[5] = bot + 0.05f; tp[6] = x - 0.68f; tp[7] = bot
-            sink.fillPolygon(tp, 4, Palette.withAlpha(Palette.BLACK, 0.349f))
-            // Betonkörper: Trapez, links hell → rechts dunkel (drei Streifen statt Verlauf im Polygon)
-            tp[0] = x - 0.5f; tp[1] = top; tp[2] = x + 0.5f; tp[3] = top; tp[4] = x + 0.74f; tp[5] = bot; tp[6] = x - 0.74f; tp[7] = bot
+            if (c.solidBeams[i] == 0) {
+                if (c.ropeBeams[i] > 0) drawRopeAnchor(x, y, snap.nodeOwner[i]) else drawFreeSlot(x, y)
+                continue
+            }
+            val top = y - FOUND_UP
+            val bot = y + FOUND_DOWN
+            // Schlagschatten (nur über dem Boden)
+            tp[0] = x - 0.5f; tp[1] = top + 0.05f; tp[2] = x + 0.62f; tp[3] = top + 0.05f; tp[4] = x + 0.74f; tp[5] = y; tp[6] = x - 0.68f; tp[7] = y
+            sink.fillPolygon(tp, 4, Palette.withAlpha(Palette.BLACK, 0.3f))
+            // versenkter Teil: Querschnitt, mit Erde abgedunkelt (Betonton bleibt erkennbar)
+            val wy = FOUND_HALF_TOP + (FOUND_HALF_BOT - FOUND_HALF_TOP) * (FOUND_UP / (FOUND_UP + FOUND_DOWN))
+            tp[0] = x - wy; tp[1] = y; tp[2] = x + wy; tp[3] = y; tp[4] = x + FOUND_HALF_BOT; tp[5] = bot; tp[6] = x - FOUND_HALF_BOT; tp[7] = bot
+            sink.fillPolygon(tp, 4, sunkConcrete)
+            c.polyStroke(tp, 4, Palette.withAlpha(Palette.SOOT, 0.55f), 0.04f)
+            for (k in 0 until 3) sink.fillRect(x - 0.4f + k * 0.3f, y + 0.18f + (k % 2) * 0.22f, 0.07f, 0.04f, Palette.withAlpha(Palette.BLACK, 0.2f))
+            // sichtbarer Teil über dem Boden: hell links → dunkel rechts (drei Streifen statt Verlauf im Polygon)
+            tp[0] = x - FOUND_HALF_TOP; tp[1] = top; tp[2] = x + FOUND_HALF_TOP; tp[3] = top; tp[4] = x + wy; tp[5] = y; tp[6] = x - wy; tp[7] = y
             sink.fillPolygon(tp, 4, concreteColors[1])
-            tp[0] = x - 0.5f; tp[1] = top; tp[2] = x - 0.1f; tp[3] = top; tp[4] = x - 0.2f; tp[5] = bot; tp[6] = x - 0.74f; tp[7] = bot
+            tp[0] = x - FOUND_HALF_TOP; tp[1] = top; tp[2] = x - 0.1f; tp[3] = top; tp[4] = x - 0.16f; tp[5] = y; tp[6] = x - wy; tp[7] = y
             sink.fillPolygon(tp, 4, concreteColors[0])
-            tp[0] = x + 0.25f; tp[1] = top; tp[2] = x + 0.5f; tp[3] = top; tp[4] = x + 0.74f; tp[5] = bot; tp[6] = x + 0.32f; tp[7] = bot
+            tp[0] = x + 0.25f; tp[1] = top; tp[2] = x + FOUND_HALF_TOP; tp[3] = top; tp[4] = x + wy; tp[5] = y; tp[6] = x + 0.3f; tp[7] = y
             sink.fillPolygon(tp, 4, concreteColors[2])
-            tp[0] = x - 0.5f; tp[1] = top; tp[2] = x + 0.5f; tp[3] = top; tp[4] = x + 0.74f; tp[5] = bot; tp[6] = x - 0.74f; tp[7] = bot
-            c.polyStroke(tp, 4, Palette.STEEL_DEEP, 0.05f)
-            for (k in 0 until 6) sink.fillRect(x - 0.4f + k * 0.15f, top + 0.2f + (k % 3) * 0.2f, 0.05f, 0.04f, Palette.withAlpha(Palette.BLACK, 0.122f))
-            // Teamstreifen
-            val owner = snap.nodeOwner[i]
-            sink.fillRect(x - 0.54f, top + 0.2f, 1.08f, 0.1f, Palette.team(owner))
-            // Versenkung: Erde mit Körnung über dem unteren Teil
-            sink.fillRect(x - 1f, y - 0.02f, 2f, 1f, SceneContext.a(Palette.DIRT_DARK, 0.78f))
-            sink.fillRect(x - 0.9f, y - 0.04f, 1.8f, 0.08f, Palette.GROUND_DARK)
+            tp[0] = x - FOUND_HALF_TOP; tp[1] = top; tp[2] = x + FOUND_HALF_TOP; tp[3] = top; tp[4] = x + wy; tp[5] = y; tp[6] = x - wy; tp[7] = y
+            c.polyStroke(tp, 4, Palette.STEEL_DEEP, 0.045f)
+            for (k in 0 until 4) sink.fillRect(x - 0.36f + k * 0.2f, top + 0.12f + (k % 2) * 0.1f, 0.05f, 0.035f, Palette.withAlpha(Palette.BLACK, 0.14f))
+            // Teamstreifen (schmal) direkt unter der Ankerplatte: Dort deckt weder der Bodenbalken (±halbe Dicke um den
+            // Knoten) noch die Knotenplatte ihn ab; am Boden selbst wäre er fast ganz verdeckt.
+            val sy0 = top + STRIPE_OFF
+            val sh = FOUND_HALF_TOP + (wy - FOUND_HALF_TOP) * ((STRIPE_OFF + STRIPE_H * 0.5f) / FOUND_UP)
+            sink.fillRect(x - sh + 0.04f, sy0, 2f * sh - 0.08f, STRIPE_H, Palette.team(snap.nodeOwner[i]))
+            // Erdkante: dunkle Linie am Boden, wo der Beton in die Erde taucht
+            sink.fillRect(x - wy - 0.08f, y - 0.03f, 2f * wy + 0.16f, 0.07f, Palette.GROUND_DARK)
             // Stahl-Ankerplatte mit zwei Bolzen
-            sink.gradientRect(x - 0.46f, top - 0.14f, 0.92f, 0.14f, 0f, top - 0.14f, 0f, top, plateColors, SceneContext.STOPS2)
-            sink.strokeRect(x - 0.46f, top - 0.14f, 0.92f, 0.14f, 0.035f, Palette.STEEL_DEEP)
-            sink.fillCircle(x - 0.32f, top - 0.07f, 0.055f, Palette.STEEL)
-            sink.fillCircle(x + 0.32f, top - 0.07f, 0.055f, Palette.STEEL)
-            sink.fillCircle(x - 0.332f, top - 0.085f, 0.022f, Palette.STEEL_PALE)
-            sink.fillCircle(x + 0.308f, top - 0.085f, 0.022f, Palette.STEEL_PALE)
+            sink.gradientRect(x - 0.46f, top - 0.12f, 0.92f, 0.12f, 0f, top - 0.12f, 0f, top, plateColors, SceneContext.STOPS2)
+            sink.strokeRect(x - 0.46f, top - 0.12f, 0.92f, 0.12f, 0.035f, Palette.STEEL_DEEP)
+            sink.fillCircle(x - 0.32f, top - 0.06f, 0.05f, Palette.STEEL)
+            sink.fillCircle(x + 0.32f, top - 0.06f, 0.05f, Palette.STEEL)
+            sink.fillCircle(x - 0.332f, top - 0.075f, 0.02f, Palette.STEEL_PALE)
+            sink.fillCircle(x + 0.308f, top - 0.075f, 0.02f, Palette.STEEL_PALE)
         }
     }
 
+    /**
+     * Freier Fundament-Platz (Knoten ohne einen einzigen Balken, z. B. die nicht genutzten Plätze der Karte): nur ein
+     * flaches, durchscheinendes Betonpodest auf Bodenhöhe, ohne Ankerplatte, Bolzen, Schatten und Teamstreifen. Er
+     * soll als möglicher Bauplatz erkennbar sein, aber nicht wie ein benutztes Fundament neben der Festung stehen.
+     */
+    private fun drawFreeSlot(x: Float, y: Float) {
+        val sink = c.sink
+        val tp = c.poly2
+        tp[0] = x - 0.46f; tp[1] = y - FREE_H; tp[2] = x + 0.46f; tp[3] = y - FREE_H; tp[4] = x + 0.58f; tp[5] = y; tp[6] = x - 0.58f; tp[7] = y
+        sink.fillPolygon(tp, 4, Palette.withAlpha(concreteColors[1], FREE_ALPHA))
+        c.polyStroke(tp, 4, Palette.withAlpha(Palette.STEEL_DEEP, FREE_ALPHA), 0.03f)
+    }
+
+    /** Kleiner Ankerstein für ein reines Seil-Ende: halb versenkter Betonblock mit Öse. */
+    private fun drawRopeAnchor(x: Float, y: Float, owner: Int) {
+        val sink = c.sink
+        sink.fillRect(x - 0.3f, y - 0.2f, 0.6f, 0.2f, concreteColors[1])
+        sink.fillRect(x - 0.3f, y - 0.2f, 0.18f, 0.2f, concreteColors[0])
+        sink.strokeRect(x - 0.3f, y - 0.2f, 0.6f, 0.2f, 0.04f, Palette.STEEL_DEEP)
+        sink.fillRect(x - 0.3f, y, 0.6f, 0.3f, sunkConcrete)
+        sink.fillRect(x - 0.3f, y - 0.03f, 0.6f, 0.06f, Palette.GROUND_DARK)
+        sink.fillRect(x - 0.3f, y - 0.2f, 0.6f, 0.04f, Palette.team(owner))
+    }
+
+    private val sunkConcrete = PixelCanvas.lerpColor(Palette.CONCRETE_LO, Palette.DIRT_DARK, 0.4f)
+
     private val plateColors = intArrayOf(Palette.STEEL_PALE, Palette.STEEL_BODY)
+
+    private companion object {
+        const val FOG_LAYERS = 24
+        /** Neigung (Höhe je Breite), ab der ein Geländestück als Felswand ohne Gras gilt. */
+        const val STEEP = 1.1f
+        /** Sockel: 40 % über, 60 % unter dem Boden. */
+        const val FOUND_UP = 0.4f
+        const val FOUND_DOWN = 0.6f
+        const val FOUND_HALF_TOP = 0.46f
+        const val FOUND_HALF_BOT = 0.7f
+        /** Teamstreifen: Abstand unter der Oberkante des Sockels (unter der Ankerplatte) und Höhe. */
+        const val STRIPE_OFF = 0.04f
+        const val STRIPE_H = 0.07f
+        /** Freier Fundament-Platz: Höhe des Podests (m) und Deckkraft. */
+        const val FREE_H = 0.13f
+        const val FREE_ALPHA = 0.55f
+    }
 }

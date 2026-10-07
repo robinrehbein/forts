@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // Snapshot-Tests des HUD (Layoutlib, JVM). 1.3.5 unterstützt AGP 8.7 / compileSdk 35.
+    id("app.cash.paparazzi") version "1.3.5"
 }
 
 android {
@@ -87,4 +89,22 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // Paparazzi-Tests sind JUnit-4-Regeln: auf der JUnit-Plattform über die Vintage-Engine
+    //noinspection UseTomlInstead (Version aus der JUnit-BOM; der Katalog gehört nicht zu diesem Modul)
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine")
+}
+
+// Paparazzi-Snapshots werden in jedem Unit-Test-Lauf (`testDebugUnitTest`, `check`) gegen die Goldens unter
+// `src/test/snapshots/images` geprüft, nicht nur gerendert: ohne das bliebe eine HUD-Regression im normalen Testlauf grün.
+// Das Plugin setzt `paparazzi.test.verify` in einem eigenen doFirst nur für `verifyPaparazzi*`; dieses doFirst wird
+// früher registriert, läuft also danach und schaltet den Vergleich auch für den normalen Testlauf ein.
+// Neu aufnehmen (gewollte Änderung): `./gradlew :app:recordPaparazziDebug`, Bilder ansehen, mit einchecken.
+tasks.withType<Test>().configureEach {
+    // Goldens sind Eingaben: ein geändertes Golden lässt den Testlauf erneut laufen
+    inputs.files(fileTree("src/test/snapshots")).withPropertyName("paparazziGoldens").withPathSensitivity(PathSensitivity.RELATIVE)
+    doFirst {
+        if (systemProperties["paparazzi.test.record"]?.toString() != "true") {
+            systemProperty("paparazzi.test.verify", true)
+        }
+    }
 }

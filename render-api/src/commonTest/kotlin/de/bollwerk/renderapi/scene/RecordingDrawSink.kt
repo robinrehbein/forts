@@ -15,6 +15,15 @@ class RecordingDrawSink(val cacheLayers: Boolean = false) : DrawSink {
     val polygonColors = HashSet<Int>()
     val fillColors = HashSet<Int>()
     val glowColors = ArrayList<Int>()
+    /** Radien aller `glow`-Aufrufe (Zeichenreihenfolge). */
+    val glowRadii = ArrayList<Float>()
+    /** Alle gefüllten Rechtecke (x, y, w, h, Farbe) in Zeichenreihenfolge. */
+    class RectRec(val x: Float, val y: Float, val w: Float, val h: Float, val color: Int)
+    val fillRects = ArrayList<RectRec>()
+    /** Kopien aller Polygone (xy-Paare) samt Farbe; nur mit [recordPolygons] (kostet Speicher). */
+    class PolyRec(val color: Int, val xy: FloatArray)
+    var recordPolygons = false
+    val polygons = ArrayList<PolyRec>()
     val imageHandles = HashMap<Int, Int>()
     val regionHandles = HashMap<Int, Int>()
     val images = HashMap<Int, ImageSpec>()
@@ -48,6 +57,7 @@ class RecordingDrawSink(val cacheLayers: Boolean = false) : DrawSink {
     fun count(name: String): Int = counts[name] ?: 0
     private fun hit(name: String) { counts[name] = (counts[name] ?: 0) + 1 }
     fun reset() {
+        glowRadii.clear(); fillRects.clear(); polygons.clear()
         counts.clear(); texts.clear(); polygonColors.clear(); fillColors.clear(); glowColors.clear(); imageHandles.clear()
         regionHandles.clear(); translations.clear(); scales.clear(); layerOrder.clear()
         circles.clear(); polyHeads.clear(); strokeRectColors.clear(); lineColors.clear(); measured.clear()
@@ -62,9 +72,9 @@ class RecordingDrawSink(val cacheLayers: Boolean = false) : DrawSink {
     override fun scale(sx: Float, sy: Float) { hit("scale"); scales.add(sx) }
     override fun clipRect(x: Float, y: Float, w: Float, h: Float) { hit("clipRect") }
     override fun clipCircle(cx: Float, cy: Float, r: Float) { hit("clipCircle") }
-    override fun fillRect(x: Float, y: Float, w: Float, h: Float, color: Int) { hit("fillRect"); fillColors.add(color) }
+    override fun fillRect(x: Float, y: Float, w: Float, h: Float, color: Int) { hit("fillRect"); fillColors.add(color); fillRects.add(RectRec(x, y, w, h, color)) }
     override fun strokeRect(x: Float, y: Float, w: Float, h: Float, width: Float, color: Int) { hit("strokeRect"); strokeRectColors.add(color) }
-    override fun fillPolygon(xy: FloatArray, count: Int, color: Int) { hit("fillPolygon"); polygonColors.add(color); if (count > 0) {
+    override fun fillPolygon(xy: FloatArray, count: Int, color: Int) { hit("fillPolygon"); polygonColors.add(color); if (recordPolygons) polygons.add(PolyRec(color, xy.copyOf(count * 2))); if (count > 0) {
         var lo = xy[0]; var hi = xy[0]
         for (k in 1 until count) { val v = xy[k * 2]; if (v < lo) lo = v; if (v > hi) hi = v }
         polyHeads.add(PolyHead(color, xy[0], xy[1], lo, hi))
@@ -78,7 +88,7 @@ class RecordingDrawSink(val cacheLayers: Boolean = false) : DrawSink {
         require(colors.size == stops.size) { "colors/stops mismatch" }
         for (i in 1 until stops.size) require(stops[i] >= stops[i - 1]) { "stops not ascending" }
     }
-    override fun glow(cx: Float, cy: Float, r: Float, color: Int) { hit("glow"); glowColors.add(color) }
+    override fun glow(cx: Float, cy: Float, r: Float, color: Int) { hit("glow"); glowColors.add(color); glowRadii.add(r) }
     override fun text(text: String, x: Float, y: Float, sizePx: Float, color: Int, align: TextAlign, bold: Boolean) { hit("text"); texts.add(text) }
     override fun measureText(text: String, sizePx: Float, bold: Boolean): Float { measured.add(text); return text.length * sizePx * measureFactor }
     override fun image(handle: Int, x: Float, y: Float, w: Float, h: Float, alpha: Float) { hit("image"); imageHandles[handle] = (imageHandles[handle] ?: 0) + 1 }

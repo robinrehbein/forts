@@ -2,60 +2,65 @@ package de.bollwerk.app.ui.game
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import de.bollwerk.app.BuildConfig
-import de.bollwerk.app.R
+import de.bollwerk.app.game.GameAudio
+import de.bollwerk.app.game.GameRuntime
+import de.bollwerk.app.game.HudUiState
 import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
-import de.bollwerk.app.ui.components.ButtonStyle
-import de.bollwerk.app.ui.components.IndustrialButton
-import de.bollwerk.app.ui.components.IndustrialIconButton
-import de.bollwerk.app.ui.components.SteelPanel
-import de.bollwerk.app.ui.components.screenPadding
+import de.bollwerk.app.ui.game.hud.GameHud
+import de.bollwerk.app.ui.game.hud.HudActions
+import de.bollwerk.app.ui.game.hud.LoadingOverlay
+import de.bollwerk.app.ui.game.hud.TechTreeSheet
+import de.bollwerk.app.ui.game.hud.WorldToScreen
 import de.bollwerk.app.ui.handover.HotseatHandoverScreen
 import de.bollwerk.app.ui.settings.SettingsScreen
 import de.bollwerk.app.ui.settings.SettingsViewModel
-import de.bollwerk.app.ui.theme.BollwerkColors
 import de.bollwerk.app.ui.theme.BollwerkTheme
-import de.bollwerk.app.ui.theme.BollwerkType
 import de.bollwerk.renderapi.Palette
-import de.bollwerk.renderandroid.GameSurfaceView
 
 /**
- * Spiel-Host: Spielfläche plus Overlays (Pause, Bestätigung, Einstellungen, Hotseat-Übergabe).
- * Die Spielfläche ist bis WP9 ein Platzhalter; [GameSurfaceView] wird bereits gehostet. System-Zurück
- * pausiert bzw. geht in den Overlays eine Ebene zurück.
+ * Spiel-Host: Spielfläche ([GameSurface], Render-Thread), Compose-HUD darüber und die Overlays (Pause, Bestätigung,
+ * Einstellungen, Techbaum, Hotseat-Übergabe). System-Zurück schließt das Sheet bzw. pausiert. Lebenszyklus: Hintergrund
+ * pausiert Sim und Audio; Audio folgt dem Laufzustand der Sim (`simRunning`), auch bei Pause-Overlays.
  */
 @Composable
-fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel) {
+fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel, audio: GameAudio?) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val hud by viewModel.hud.collectAsStateWithLifecycle()
+    val toast by viewModel.toast.collectAsStateWithLifecycle()
+    val runtime by viewModel.runtime.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val simRunning by viewModel.simRunning.collectAsStateWithLifecycle()
     BackHandler { viewModel.onSystemBack() }
-    // Hinweg aus dem Vordergrund: Spiel pausieren, Hotseat-Übergabe verdeckt lassen (kein Countdown im Hintergrund).
-    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onAppBackgrounded() }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        viewModel.onAppBackgrounded()
+        audio?.onPause()
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onAppForegrounded() }
+    // Audio läuft genau dann, wenn die Sim läuft: Pause-Dialog, Einstellungen und wartende Übergabe halten es an
+    // (Hintergrund ebenso, siehe oben); nach der Rückkehr setzt erst „Fortsetzen" das Audio fort.
+    LaunchedEffect(simRunning, audio) { if (simRunning) audio?.onResume() else audio?.onPause() }
+    LaunchedEffect(settings, audio) { audio?.apply(settings) }
+    DisposableEffect(audio) { onDispose { audio?.stopAll() } }
     GameContent(
         state = state,
-        onPause = viewModel::pause,
-        onEndTurn = viewModel::endTurn,
-        onDebugFinish = viewModel::finishWithSampleStats,
+        hud = hud,
+        toast = toast,
+        leftHanded = settings.leftHanded,
+        actions = viewModel,
         onResume = viewModel::resume,
         onRequestConfirm = viewModel::requestConfirm,
         onOpenSettings = viewModel::openSettings,
@@ -63,15 +68,29 @@ fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel) {
         onCancelConfirm = viewModel::cancelConfirm,
         onHandoverReady = viewModel::onHandoverReady,
         settingsOverlay = { SettingsScreen(settingsViewModel, onBack = viewModel::closeSettings) },
+        worldToScreen = runtime?.let { worldToScreenOf(it) } ?: NO_SCREEN,
+        surface = {
+            Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) {
+                GameSurface(runtime, state.matchGeneration, settings.reducedEffects, simRunning, Modifier.fillMaxSize())
+            }
+        },
     )
+}
+
+private val NO_SCREEN = WorldToScreen { _, _ -> null }
+
+private fun worldToScreenOf(rt: GameRuntime) = WorldToScreen { x, y ->
+    val cam = rt.camera
+    synchronized(cam) { Offset(cam.worldToScreenX(x), cam.worldToScreenY(y)) }
 }
 
 @Composable
 fun GameContent(
     state: GameUiState,
-    onPause: () -> Unit,
-    onEndTurn: () -> Unit,
-    onDebugFinish: (Boolean) -> Unit,
+    hud: HudUiState,
+    toast: GameToast?,
+    leftHanded: Boolean,
+    actions: HudActions,
     onResume: () -> Unit,
     onRequestConfirm: (PauseAction) -> Unit,
     onOpenSettings: () -> Unit,
@@ -79,11 +98,17 @@ fun GameContent(
     onCancelConfirm: () -> Unit,
     onHandoverReady: () -> Unit,
     settingsOverlay: @Composable () -> Unit,
-    surface: @Composable () -> Unit = { GameSurface(state.matchGeneration) },
+    worldToScreen: WorldToScreen = NO_SCREEN,
+    surface: @Composable () -> Unit = { Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) },
 ) {
-    Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) {
+    Box(Modifier.fillMaxSize()) {
         surface()
-        PlaceholderHud(state, onPause, onEndTurn, onDebugFinish)
+        if (state.loading) {
+            LoadingOverlay()
+        } else if (!state.boardHidden) {
+            GameHud(hud, toast, leftHanded, actions, worldToScreen = worldToScreen)
+            if (state.techTreeOpen) TechTreeSheet(hud, actions)
+        }
         when (val overlay = state.overlay) {
             GameOverlay.None -> Unit
             GameOverlay.Pause -> PauseDialog(onResume, onRequestConfirm, onOpenSettings)
@@ -94,49 +119,13 @@ fun GameContent(
     }
 }
 
-/** Hostet die [GameSurfaceView]; bei Neustart ([generation]) wird sie neu aufgebaut. */
-@Composable
-private fun GameSurface(generation: Int) {
-    key(generation) {
-        AndroidView(factory = { GameSurfaceView(it) }, modifier = Modifier.fillMaxSize())
-    }
-}
-
-/** Platzhalter-HUD bis WP9: Pause-Knopf, Hinweis; im Hotseat „Zug beenden"; im Debug-Build Ergebnis-Abkürzungen. */
-@Composable
-private fun PlaceholderHud(
-    state: GameUiState,
-    onPause: () -> Unit,
-    onEndTurn: () -> Unit,
-    onDebugFinish: (Boolean) -> Unit,
-) {
-    Box(Modifier.fillMaxSize().screenPadding(16.dp)) {
-        IndustrialIconButton(
-            painterResource(R.drawable.ic_pause), stringResource(R.string.game_pause_cd), onPause,
-            Modifier.align(Alignment.TopEnd),
-        )
-        SteelPanel(Modifier.align(Alignment.Center)) {
-            Text(stringResource(R.string.game_placeholder), style = BollwerkType.BodyStrong, color = BollwerkColors.Text)
-        }
-        Row(Modifier.align(Alignment.BottomStart), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (state.config.mode == GameMode.HOTSEAT) {
-                IndustrialButton(stringResource(R.string.game_end_turn), onEndTurn, style = ButtonStyle.Primary, rivets = false, hazard = false)
-            }
-            if (BuildConfig.DEBUG) {
-                IndustrialButton(stringResource(R.string.game_debug_victory), { onDebugFinish(true) }, Modifier.padding(0.dp), rivets = false)
-                IndustrialButton(stringResource(R.string.game_debug_defeat), { onDebugFinish(false) }, rivets = false)
-            }
-        }
-    }
-}
-
 @Preview(widthDp = 800, heightDp = 360)
 @Composable
 private fun GamePreview() {
     BollwerkTheme {
         GameContent(
-            GameUiState(MatchConfig(mode = GameMode.HOTSEAT)), {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-            surface = {},
+            GameUiState(MatchConfig(mode = GameMode.HOTSEAT), loading = false), HudUiState(), null, false, HudActions.NONE,
+            {}, {}, {}, {}, {}, {}, {},
         )
     }
 }
@@ -146,8 +135,8 @@ private fun GamePreview() {
 private fun GamePausePreview() {
     BollwerkTheme {
         GameContent(
-            GameUiState(MatchConfig(), overlay = GameOverlay.Pause), {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
-            surface = {},
+            GameUiState(MatchConfig(), overlay = GameOverlay.Pause, loading = false), HudUiState(), null, false, HudActions.NONE,
+            {}, {}, {}, {}, {}, {}, {},
         )
     }
 }

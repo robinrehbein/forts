@@ -73,7 +73,7 @@ fun ResultContent(result: MatchResult, onRematch: () -> Unit, onMainMenu: () -> 
     val team = teamOf(result.bannerPlayerId)
     BlueprintBackground(tint = if (result.isVictory) BollwerkColors.TeamBlue else BollwerkColors.TeamRed) {
         Column(Modifier.fillMaxSize().screenPadding(28.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ResultBanner(result.isVictory, team, result.bannerPlayerId, Modifier.align(Alignment.CenterHorizontally))
+            ResultBanner(result.isVictory, result.isDraw, team, result.bannerPlayerId, Modifier.align(Alignment.CenterHorizontally))
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                 ReactorPanel(result.reason, Modifier.weight(0.9f).fillMaxHeight())
                 Column(Modifier.weight(1.2f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -96,7 +96,7 @@ fun ResultContent(result: MatchResult, onRematch: () -> Unit, onMainMenu: () -> 
 }
 
 @Composable
-private fun ResultBanner(victory: Boolean, team: TeamColor, playerId: Int, modifier: Modifier) {
+private fun ResultBanner(victory: Boolean, draw: Boolean, team: TeamColor, playerId: Int, modifier: Modifier) {
     val base = if (team == TeamColor.BLUE) BollwerkColors.TeamBlue else BollwerkColors.TeamRed
     val light = if (team == TeamColor.BLUE) BollwerkColors.BlueLight else BollwerkColors.RedLight
     val deep = if (team == TeamColor.BLUE) BollwerkColors.BlueDeep else BollwerkColors.RedDeep
@@ -132,7 +132,13 @@ private fun ResultBanner(victory: Boolean, team: TeamColor, playerId: Int, modif
                 color = BollwerkColors.Text.copy(alpha = 0.9f),
             )
             Text(
-                stringResource(if (victory) R.string.result_victory else R.string.result_defeat).uppercase(),
+                stringResource(
+                    when {
+                        draw -> R.string.result_draw
+                        victory -> R.string.result_victory
+                        else -> R.string.result_defeat
+                    },
+                ).uppercase(),
                 Modifier.semantics { heading() },
                 style = BollwerkType.Wordmark.copy(fontSize = 46.sp, letterSpacing = if (victory) 0.34.em else 0.16.em),
                 color = BollwerkColors.Text,
@@ -158,6 +164,8 @@ private fun ReactorPanel(reason: EndReason, modifier: Modifier) {
                     EndReason.ENEMY_REACTOR_DESTROYED -> R.string.reason_enemy_reactor
                     EndReason.OWN_REACTOR_DESTROYED -> R.string.reason_own_reactor
                     EndReason.SURRENDER -> R.string.reason_surrender
+                    EndReason.TIMEOUT -> R.string.reason_timeout
+                    EndReason.DRAW -> R.string.reason_draw
                 },
             ).uppercase(),
             Modifier

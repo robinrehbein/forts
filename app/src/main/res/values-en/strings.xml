@@ -71,11 +71,7 @@
     <string name="settings_language_value">Follows system</string>
 
     <!-- Game / pause -->
-    <string name="game_placeholder">Game area (placeholder)</string>
     <string name="game_pause_cd">Pause</string>
-    <string name="game_end_turn">End turn</string>
-    <string name="game_debug_victory">Victory (test)</string>
-    <string name="game_debug_defeat">Defeat (test)</string>
     <string name="pause_title">Pause</string>
     <string name="pause_resume">Resume</string>
     <string name="pause_restart">Restart</string>
@@ -121,4 +117,124 @@
         <item>Protect the reactor with armour beams</item>
         <item>Tall wind turbines produce more energy</item>
     </string-array>
+
+    <!-- Game / HUD (WP9) -->
+    <string name="game_loading">Preparing battle …</string>
+    <string name="hud_metal">Metal</string>
+    <string name="hud_energy">Energy</string>
+    <string name="hud_time">Time</string>
+    <string name="hud_wind">Wind</string>
+    <string name="hud_wind_unit">m/s</string>
+    <string name="hud_rate">%1$s/s</string>
+    <string name="hud_energy_cap">/%1$d</string>
+    <string name="hud_enemy">Player %1$d</string>
+    <string name="hud_turn">Turn %1$d</string>
+    <string name="hud_resolve">Resolving</string>
+    <string name="hud_turn_time">%1$d s</string>
+    <string name="hud_per_meter">/m</string>
+    <string name="hud_wind_left_cd">Wind to the left</string>
+    <string name="hud_wind_right_cd">Wind to the right</string>
+    <string name="tool_weapons">Weapons</string>
+    <string name="tool_techtree">Tech tree</string>
+    <string name="tool_undo">Undo</string>
+    <string name="tool_repair">Repair</string>
+    <string name="tool_delete">Demolish</string>
+    <string name="tool_door">Door</string>
+    <string name="tool_none">Build</string>
+    <string name="mode_aim">Aim</string>
+    <string name="mode_build">Build</string>
+    <string name="aim_angle_power">Angle · Power</string>
+    <string name="aim_power">Power</string>
+    <string name="aim_door_open">Door open</string>
+    <string name="aim_door_closed">Door closed</string>
+    <string name="aim_fire">Fire</string>
+    <string name="aim_seconds">%1$s s</string>
+    <string name="aim_building">building</string>
+    <string name="aim_no_weapon">No weapon</string>
+    <string name="aim_pick_weapon">Tap a weapon, then drag</string>
+    <string name="aim_splash">%1$s · Splash %2$s m</string>
+    <string name="aim_wind_drift">Wind %1$s m</string>
+    <string name="aim_next_weapon_cd">Next weapon</string>
+    <string name="kind_mg">Burst</string>
+    <string name="kind_sniper">Piercing</string>
+    <string name="kind_mortar">Shell</string>
+    <string name="kind_cannon">Ball</string>
+    <string name="kind_rocket">Incendiary</string>
+    <string name="kind_laser">Beam</string>
+    <string name="tech_title">Tech tree</string>
+    <string name="tech_subtitle">Build structures to unlock weapons and materials · costs per shot or per metre</string>
+    <string name="tech_built">Built</string>
+    <string name="tech_building">Building · %1$d %%</string>
+    <string name="tech_available">Available</string>
+    <string name="tech_locked">Locked</string>
+    <string name="tech_active">Active</string>
+    <string name="tech_level">Level 1</string>
+    <string name="tech_ready_in">Ready in %1$s</string>
+    <string name="tech_build">Build</string>
+    <string name="tech_requires">Requires %1$s</string>
+    <string name="tech_damage">Damage %1$d</string>
+    <string name="tech_range">Range %1$d m</string>
+    <string name="tech_salvo" tools:ignore="PluralsCandidate">%1$d × %2$d burst</string>
+    <string name="tech_incendiary">%1$d + fire</string>
+    <string name="tech_beam">%1$d/s for %2$d s</string>
+    <string name="tech_seconds">%1$d s</string>
+    <string name="tech_close_cd">Close tech tree</string>
+    <string name="ctx_repair">Repair</string>
+    <string name="ctx_delete">Demolish</string>
+    <string name="ctx_door_open">Open door</string>
+    <string name="ctx_door_close">Close door</string>
+    <string name="ctx_extinguish">Extinguish</string>
+    <string name="end_turn">End turn</string>
+    <string name="scene_apex">APEX %1$d m</string>
+    <string name="result_draw">Draw</string>
+    <string name="reason_timeout">Time is up</string>
+    <string name="reason_draw">Both reactors destroyed</string>
+    <string name="settings_haptics">Vibration</string>
+    <string name="settings_haptics_desc">Light vibration on your own shots and hits</string>
+
+    <!-- Parts (content nameKeys) -->
+    <string name="material_wood">Wood</string>
+    <string name="material_metal">Metal</string>
+    <string name="material_armour">Armour</string>
+    <string name="material_rope">Rope</string>
+    <string name="material_door">Door</string>
+    <string name="device_reactor">Reactor</string>
+    <string name="device_mine">Mine</string>
+    <string name="device_turbine">Turbine</string>
+    <string name="device_workshop">Workshop</string>
+    <string name="device_armoury">Armoury</string>
+    <string name="device_upgrade_center">Upgrade centre</string>
+    <string name="device_factory">Factory</string>
+    <string name="device_mg">MG</string>
+    <string name="device_sniper">Sniper</string>
+    <string name="device_mortar">Mortar</string>
+    <string name="device_cannon">Cannon</string>
+    <string name="device_rocket">Fire rocket</string>
+    <string name="device_laser">Laser</string>
+
+    <!-- Rejection reasons (RejectReason.displayKey) -->
+    <string name="reject_not_enough_metal">Not enough metal</string>
+    <string name="reject_not_enough_energy">Not enough energy</string>
+    <string name="reject_too_long">Too long</string>
+    <string name="reject_too_short">Too short</string>
+    <string name="reject_not_connected">Not connected</string>
+    <string name="reject_out_of_build_zone">Outside the build zone</string>
+    <string name="reject_blocked_by_terrain">Blocked by terrain</string>
+    <string name="reject_duplicate_beam">Beam already exists</string>
+    <string name="reject_occupied">Space occupied</string>
+    <string name="reject_locked_tech">Not unlocked yet</string>
+    <string name="reject_invalid_target">Invalid target</string>
+    <string name="reject_stale_target">Target no longer exists</string>
+    <string name="reject_not_owner">Not your part</string>
+    <string name="reject_not_your_turn">Not your turn</string>
+    <string name="reject_reloading">Reloading</string>
+    <string name="reject_still_building">Still being built</string>
+    <string name="reject_needs_ore">Only above ore</string>
+    <string name="reject_top_mount_only">Top mount only</string>
+    <string name="reject_unique_limit">Only one allowed</string>
+    <string name="reject_reactor_protected">Reactor is protected</string>
+    <string name="reject_nothing_to_undo">Nothing to undo</string>
+    <string name="reject_undo_blocked">Cannot undo (damaged)</string>
+    <string name="reject_unknown_content">Unknown part</string>
+    <string name="reject_game_over">Game is over</string>
 </resources>

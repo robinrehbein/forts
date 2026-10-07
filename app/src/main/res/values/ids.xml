@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View-Tag: Verbindung GameSurfaceView ↔ laufende Partie (ui/game/GameSurface.kt) -->
+    <item name="game_surface_binding" type="id" />
+</resources>

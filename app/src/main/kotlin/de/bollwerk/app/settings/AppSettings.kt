@@ -21,6 +21,8 @@ data class AppSettings(
     val releaseToFire: Boolean = false,
     /** Weniger Partikel, kein Kamera-Shake. */
     val reducedEffects: Boolean = false,
+    /** Leichte Vibration bei eigenen Schüssen und Treffern. */
+    val haptics: Boolean = true,
 )
 
 /** Zuletzt gewählte Gefecht-Setup-Optionen (damit das Setup beim nächsten Mal wieder passt). */
@@ -38,6 +40,7 @@ object PrefKeys {
     val LEFT_HANDED = booleanPreferencesKey("left_handed")
     val RELEASE_TO_FIRE = booleanPreferencesKey("release_to_fire")
     val REDUCED_FX = booleanPreferencesKey("reduced_effects")
+    val HAPTICS = booleanPreferencesKey("haptics")
 
     val SETUP_MAP = stringPreferencesKey("setup_map")
     val SETUP_AI = stringPreferencesKey("setup_ai")
@@ -58,6 +61,7 @@ fun Preferences.toAppSettings(): AppSettings {
         leftHanded = this[PrefKeys.LEFT_HANDED] ?: d.leftHanded,
         releaseToFire = this[PrefKeys.RELEASE_TO_FIRE] ?: d.releaseToFire,
         reducedEffects = this[PrefKeys.REDUCED_FX] ?: d.reducedEffects,
+        haptics = this[PrefKeys.HAPTICS] ?: d.haptics,
     )
 }
 
@@ -67,6 +71,7 @@ fun androidx.datastore.preferences.core.MutablePreferences.write(settings: AppSe
     this[PrefKeys.LEFT_HANDED] = settings.leftHanded
     this[PrefKeys.RELEASE_TO_FIRE] = settings.releaseToFire
     this[PrefKeys.REDUCED_FX] = settings.reducedEffects
+    this[PrefKeys.HAPTICS] = settings.haptics
 }
 
 fun Preferences.toSetupPrefs(): SetupPrefs {

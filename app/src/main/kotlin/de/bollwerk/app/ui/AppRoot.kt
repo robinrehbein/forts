@@ -9,7 +9,15 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.compose.ui.platform.LocalConfiguration
 import de.bollwerk.app.AppViewModel
+import de.bollwerk.app.di.AppGraph
+import de.bollwerk.app.game.GameController
+import de.bollwerk.app.game.GameRuntime
+import de.bollwerk.app.game.MatchSessions
+import de.bollwerk.app.ui.game.GameRuntimeFactory
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import de.bollwerk.app.nav.Screen
 import de.bollwerk.app.ui.game.GameScreen
 import de.bollwerk.app.ui.game.GameViewModel
@@ -62,10 +70,21 @@ fun AppRoot(app: AppViewModel) {
                     SettingsScreen(vm, onBack = { nav.back(entry.id) })
                 }
                 is Screen.Game -> {
+                    val separator = decimalSeparator()
                     val vm = viewModel<GameViewModel>(
-                        factory = viewModelFactory { initializer { GameViewModel(screen.config, nav, entryId = entry.id) } },
+                        factory = viewModelFactory {
+                            initializer {
+                                GameViewModel(
+                                    screen.config, nav,
+                                    runtimeFactory = gameRuntimeFactory(graph),
+                                    settings = graph.settings.settings,
+                                    decimalSeparator = separator,
+                                    entryId = entry.id,
+                                )
+                            }
+                        },
                     )
-                    GameScreen(vm, settingsViewModel(app))
+                    GameScreen(vm, settingsViewModel(app), graph.audio)
                 }
                 is Screen.Result -> {
                     val vm = viewModel<ResultViewModel>(
@@ -79,6 +98,19 @@ fun AppRoot(app: AppViewModel) {
             }
         }
     }
+}
+
+/** Partie anlegen: Content (einmal geladen) → `MatchSessions` → Sim-Thread-Controller, Audio-Hörer je Partie. */
+private fun gameRuntimeFactory(graph: AppGraph) = GameRuntimeFactory { config ->
+    val session = MatchSessions.create(graph.content(), config)
+    GameRuntime(GameController(session), graph.audio?.listenerFor(session))
+}
+
+/** Dezimalzeichen der Oberflächensprache („3,2" bzw. „3.2"). */
+@Composable
+private fun decimalSeparator(): Char {
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.ROOT
+    return DecimalFormatSymbols.getInstance(locale).decimalSeparator
 }
 
 @Composable

@@ -15,6 +15,8 @@ import kotlin.math.sin
  */
 object ProceduralTextures {
     const val BASE_TPM: Int = 72
+    /** Knotendurchmesser in m (Stil-Bibel §4: 0,42 m). */
+    const val JOINT_D: Float = 0.42f
     const val WOOD_LEN: Int = 4
     const val METAL_LEN: Int = 2
     const val ARMOUR_LEN: Int = 3
@@ -300,9 +302,9 @@ object ProceduralTextures {
         val m = tpm.toFloat()
         val cx = n / 2f
         val cy = n / 2f
-        val w = 0.2f * m
-        val h = 0.15f * m
-        val o = 1.2f * tpm / BASE_TPM
+        val w = JOINT_D * 0.5f * m
+        val h = 0.16f * m
+        val o = maxOf(1f, 1.2f * tpm / BASE_TPM)
         cv.roundRectDiag(cx - w - o, cy - h - o, cx + w + o, cy + h + o, 0.05f * m, c(0x0f1318), c(0x0f1318))
         cv.roundRectDiag(cx - w, cy - h, cx + w, cy + h, 0.045f * m, c(0x6c7682), c(0x343c46))
         cv.rect(cx - w + 0.02f * m, cy - h + 0.012f * m, cx + w - 0.02f * m, cy - h + 0.032f * m, c(0xffffff, 0.25f))
@@ -319,8 +321,8 @@ object ProceduralTextures {
         val m = tpm.toFloat()
         val cx = n / 2f
         val cy = n / 2f
-        val r = 0.2f * m
-        cv.hexagon(cx, cy, r + 1.3f * tpm / BASE_TPM, c(0x0f1318))
+        val r = JOINT_D * 0.5f * m
+        cv.hexagon(cx, cy, r + maxOf(1.1f, 1.3f * tpm / BASE_TPM), c(0x0f1318))
         cv.hexagon(cx, cy, r, c(0xb4c0cd), c(0x4d5866))
         cv.ring(cx, cy, r * 0.74f, 0.015f * m + 0.5f, c(0xffffff, 0.3f))
         bolt(cv, cx, cy, 0.065f * m)
@@ -335,8 +337,8 @@ object ProceduralTextures {
         val m = tpm.toFloat()
         val cx = n / 2f
         val cy = n / 2f
-        val r = 0.19f * m
-        cv.disc(cx, cy, r + 1.2f * tpm / BASE_TPM, c(0x0f1318))
+        val r = JOINT_D * 0.5f * m
+        cv.disc(cx, cy, r + maxOf(1f, 1.2f * tpm / BASE_TPM), c(0x0f1318))
         cv.sphere(cx, cy, r, -r * 0.4f, -r * 0.4f, c(0xd5dde6), c(0x5d6876))
         cv.disc(cx, cy, r * 0.42f, c(0x2b3440))
         cv.disc(cx - r * 0.1f, cy - r * 0.12f, r * 0.16f, c(0xffffff, 0.4f))

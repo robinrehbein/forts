@@ -19,7 +19,11 @@ internal class FxState(private val reduced: Boolean) {
     // ---- Kamera-Shake / Bildschirmblitz ----
     /** Aktuelle Shake-Amplitude in dp (max. 6, im reduzierten Modus ×0,25). */
     var shakeDp = 0f
-    var screenFlash = 0f
+    /** Örtlicher Explosions-Blitz: Stärke 0..1, Mittelpunkt und gewünschter Radius in m (Begrenzung beim Zeichnen). */
+    var burst = 0f
+    var burstX = 0f
+    var burstY = 0f
+    var burstR = 0f
 
     // ---- Balken je Slot ----
     var beamUid = IntArray(0)
@@ -55,8 +59,12 @@ internal class FxState(private val reduced: Boolean) {
     /** Wolkenphase (integriert Wind). */
     var cloudPhase = 0f
 
+    /** Knoten-uid der Fahnenstange je Spieler (-1 = keine); bleibt gültig, solange der Knoten taugt (kein Springen). */
+    val flagUid = IntArray(4) { -1 }
+
     fun reset() {
-        shakeDp = 0f; screenFlash = 0f; decalCount = 0; decalHead = 0; trCount = 0; cloudPhase = 0f
+        flagUid.fill(-1)
+        shakeDp = 0f; burst = 0f; decalCount = 0; decalHead = 0; trCount = 0; cloudPhase = 0f
         beamUid.fill(0); beamFlash.fill(0f); scorchCount.fill(0)
         devUid.fill(0); devFlash.fill(0f); devRecoil.fill(0f); devSpin.fill(0f); devPhase.fill(0f)
     }
@@ -112,7 +120,9 @@ internal class FxState(private val reduced: Boolean) {
         when (e) {
             is FxEvent.Explosion -> {
                 addShake(minOf(6f, 1f + e.damage / 22f))
-                if (!reduced && e.damage >= 40f) screenFlash = maxOf(screenFlash, 0.22f)
+                if (!reduced && e.damage >= 40f) {
+                    burst = 1f; burstX = e.x; burstY = e.y; burstR = e.radius * 2.2f
+                }
                 // Brandspur auf dem getroffenen (oder nächsten) Balken und im Gelände
                 var slot = beamSlot(snap, e.hitBeamUid)
                 var t = e.hitBeamT
@@ -205,7 +215,7 @@ internal class FxState(private val reduced: Boolean) {
         if (dt <= 0f) return
         shakeDp *= 0.002f.pow(dt)
         if (shakeDp < 0.05f) shakeDp = 0f
-        screenFlash = maxOf(0f, screenFlash - dt * 4f)
+        burst = maxOf(0f, burst - dt * 4f)
         val fl = dt * 4f
         for (i in 0 until snap.beamCount) if (beamFlash[i] > 0f) beamFlash[i] = maxOf(0f, beamFlash[i] - fl)
         for (i in 0 until snap.deviceCount) {

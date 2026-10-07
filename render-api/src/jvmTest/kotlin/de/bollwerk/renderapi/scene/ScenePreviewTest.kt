@@ -226,6 +226,31 @@ class ScenePreviewTest {
         assertTrue(nonEmpty(t))
     }
 
+    /** WP14a: Lupe über der Festung (zeigt die echte vergrößerte Welt samt Fadenkreuz, nicht nur den Ghost). */
+    @Test
+    fun loupeOverFort() {
+        val s = mockupScene()
+        val ghost = GhostBeam(33f, 25f, 35.2f, 28.2f, SyntheticScene.WOOD, true, null, 3.9f, 16f, snapNodeRef = 1)
+        val t = render(s, 2560, 1152, 2f, { it.setZoom(1f); it.centerX = 40f; it.centerY = 28f }, warmup = 0.5f, name = "scene-loupe-fort",
+            overlayOf = { cam ->
+                OverlayState(mode = InteractionMode.BUILD, tool = ToolSelection.Material(0), ghost = ghost,
+                    loupe = Loupe(cam.worldToScreenX(ghost.bx), cam.worldToScreenY(ghost.by), ghost.bx, ghost.by))
+            })
+        assertTrue(nonEmpty(t))
+    }
+
+    /** WP14a: Lesbarkeit im Telefonmaßstab (1600 × 740 und 2400 × 1080), Standardzoom beider Festungen. */
+    @Test
+    fun phoneScaleReadability() {
+        val s = mockupScene(narrow = false)
+        val a = render(s, 1600, 740, 1f, { it.fitRect(-5f, 8f, 125f, 56f) }, warmup = 1.0f, name = "phone-1600")
+        val b = render(mockupScene(narrow = false), 2400, 1080, 1.5f, { it.fitRect(-5f, 8f, 125f, 56f) }, warmup = 1.0f, name = "phone-2400")
+        assertTrue(nonEmpty(a) && nonEmpty(b))
+        // Standardzoom (24 dp/m) um die linke Festung: Geräte müssen erkennbar sein
+        val c = render(mockupScene(narrow = false), 1600, 740, 1f, { it.setZoom(1f); it.centerX = 30f; it.centerY = 28f }, warmup = 1.0f, name = "phone-1600-zoom1")
+        assertTrue(nonEmpty(c))
+    }
+
     private fun nonEmpty(t: AwtTarget): Boolean {
         var colored = 0
         for (y in 0 until t.heightPx step 16) for (x in 0 until t.widthPx step 16) if ((t.image.getRGB(x, y) ushr 24) != 0) colored++

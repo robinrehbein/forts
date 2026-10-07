@@ -55,14 +55,14 @@ internal class BackgroundPainter(private val c: SceneContext, private val info: 
             sink.fillCircle(x, y, info.starS[i] * d, SceneContext.a(Palette.STAR, info.starA[i] * f * f))
         }
 
-        // Sonne tief am Horizont
-        val sR = SceneContext.clamp(vw / d * 0.028f, 26f, 48f) * d
+        // Eine Sonne tief am Horizont (Stil-Bibel §6): ein weicher Halo und eine einzige Scheibe, deren untere Hälfte
+        // die Berge verdecken. Der Halo ist bewusst schwach (additiv über dem hellen Horizont würde er sonst zu einer
+        // zweiten, größeren "Sonne" sättigen).
+        val sR = SceneContext.clamp(vw / d * 0.03f, 26f, 46f) * d
         val sunX = vw * 0.5f + (info.map.width * 0.5f - c.camX) * s * 0.14f
-        val sunY = hY - sR * 0.45f
-        sink.glow(sunX, sunY, sR * 7f, SceneContext.a(Palette.SPARK, 0.4f))
-        sink.fillCircle(sunX, sunY, sR, Palette.SUN_CORE)
-        sink.fillCircle(sunX, sunY - sR * 0.12f, sR * 0.86f, Palette.SUN)
-        sink.fillCircle(sunX - sR * 0.1f, sunY - sR * 0.26f, sR * 0.6f, Palette.CREAM)
+        val sunY = hY - sR * 0.3f
+        sink.glow(sunX, sunY, sR * 5.2f, SceneContext.a(Palette.SUN_CORE, 0.3f))
+        sink.fillCircle(sunX, sunY, sR, Palette.SUN)
 
         // 3 Bergebenen: weiter weg = heller und violetter
         for (l in 0 until 3) {

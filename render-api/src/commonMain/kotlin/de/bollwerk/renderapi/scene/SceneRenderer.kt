@@ -20,6 +20,9 @@ import de.bollwerk.renderapi.TextAlign
  *   [de.bollwerk.renderapi.PooledParticleSystem] selbst (260).
  * @property hudTopInsetDp Höhe der HUD-Leiste oben in dp (Lupe/Chips weichen ihr aus).
  */
+/** Wahrscheinlichkeit je Sekunde und Feuerstärke, dass ein brennender Balken eine Rauchwolke aussendet. */
+private const val SMOKE_RATE = 2.2f
+
 class SceneConfig(
     val reducedMotion: Boolean = false,
     val texts: SceneTexts = SceneTexts(),
@@ -145,6 +148,7 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
         boundDensity = -1f
         c.texWood = -1; c.texMetal = -1; c.texArmour = -1; c.texDoor = -1; c.texGrit = -1; c.texScorch = -1
         c.texJointWood = -1; c.texJointMetal = -1; c.texJointAnchor = -1
+        c.texMip.fill(-1)
         for (i in 0 until 4) c.texCloud[i] = -1
     }
 
@@ -158,23 +162,30 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
     /** Erzeugt alle prozeduralen Texturen für die Pixeldichte des Ziels und registriert sie bei der Senke. */
     private fun registerTextures(target: RenderTarget) {
         val sink = target.sink
-        val tpm = ProceduralTextures.tpmFor(target.density)
-        c.tpm = tpm
+        c.tpm = ProceduralTextures.tpmFor(target.density)
         fun thick(kind: Int, def: Float): Float {
             for (i in c.matKind.indices) if (c.matKind[i] == kind) return c.matThick[i]
             return def
         }
-        c.texWood = reg(sink, ProceduralTextures.wood(tpm, thick(MatKind.WOOD, 0.32f)))
-        c.texMetal = reg(sink, ProceduralTextures.metal(tpm, thick(MatKind.METAL, 0.26f)))
-        c.texArmour = reg(sink, ProceduralTextures.armour(tpm, thick(MatKind.ARMOUR, 0.42f)))
-        c.texDoor = reg(sink, ProceduralTextures.door(tpm, thick(MatKind.DOOR, 0.40f)))
+        val tw = thick(MatKind.WOOD, 0.32f); val tm = thick(MatKind.METAL, 0.26f)
+        val ta = thick(MatKind.ARMOUR, 0.42f); val td = thick(MatKind.DOOR, 0.40f)
+        // Mip-Stufen: jede Stufe hat ihre eigene Rasterung (nativ gezeichnet, nicht herunterskaliert)
+        for (m in SceneContext.MIP_TPM.indices) {
+            val tpm = SceneContext.MIP_TPM[m]
+            val b = m * SceneContext.MIP_KINDS
+            c.texMip[b] = reg(sink, ProceduralTextures.wood(tpm, tw))
+            c.texMip[b + 1] = reg(sink, ProceduralTextures.metal(tpm, tm))
+            c.texMip[b + 2] = reg(sink, ProceduralTextures.armour(tpm, ta))
+            c.texMip[b + 3] = reg(sink, ProceduralTextures.door(tpm, td))
+            c.texMip[b + 4] = reg(sink, ProceduralTextures.jointWood(tpm))
+            c.texMip[b + 5] = reg(sink, ProceduralTextures.jointMetal(tpm))
+            c.texMip[b + 6] = reg(sink, ProceduralTextures.jointAnchor(tpm))
+            c.jointWorldMip[m] = ProceduralTextures.jointSize(tpm).toFloat() / tpm
+        }
         c.texGrit = reg(sink, ProceduralTextures.grit())
         c.texScorch = reg(sink, ProceduralTextures.scorch())
-        c.texJointWood = reg(sink, ProceduralTextures.jointWood(tpm))
-        c.texJointMetal = reg(sink, ProceduralTextures.jointMetal(tpm))
-        c.texJointAnchor = reg(sink, ProceduralTextures.jointAnchor(tpm))
         for (i in 0 until 4) c.texCloud[i] = reg(sink, ProceduralTextures.cloud(i))
-        c.jointWorld = ProceduralTextures.jointSize(tpm).toFloat() / tpm
+        c.selectMip(c.s)
         boundSink = sink
         boundDensity = target.density
     }
@@ -221,6 +232,8 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
             ix[i] = snap.nodePrevX[i] + (snap.nodeX[i] - snap.nodePrevX[i]) * a
             iy[i] = snap.nodePrevY[i] + (snap.nodeY[i] - snap.nodePrevY[i]) * a
         }
+
+        countNodeBeams(snap)
 
         // Zeitschritt dieses Frames. Der Zeitsprung zurück (Replay-Neustart, neue Partie ohne `bind`) setzt den
         // visuellen Zustand immer zurück, egal woher die Frame-Dauer stammt.
@@ -292,7 +305,19 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
 
         // 4. Bildschirm-Overlays
         drawScreenOverlays(snap, overlay, camera, vw, vh, density, scale, ox0 + shakeXpx, oy0 + shakeYpx, particles)
-        if (fx.screenFlash > 0f && !config.reducedMotion) sink.fillRect(0f, 0f, vw, vh, SceneContext.a(Palette.WHITE, fx.screenFlash))
+    }
+
+    /** Zählt je Knoten die lebenden Nicht-Seil-Balken und Seile (Fundamente, Seil-Anker, Fahnenstange). */
+    private fun countNodeBeams(snap: FrameSnapshot) {
+        val solid = c.solidBeams; val rope = c.ropeBeams
+        for (i in 0 until snap.nodeCount) { solid[i] = 0; rope[i] = 0 }
+        for (b in 0 until snap.beamCount) {
+            if ((snap.beamFlags[b] and BeamFlags.ALIVE) == 0) continue
+            val mat = snap.beamMaterial[b]
+            val isRope = mat >= 0 && mat < c.matKind.size && c.matKind[mat] == MatKind.ROPE
+            val a = snap.beamA[b]; val e = snap.beamB[b]
+            if (isRope) { rope[a]++; rope[e]++ } else { solid[a]++; solid[e]++ }
+        }
     }
 
     /** Welt-Zeichnung unter der aktuellen Sicht [SceneContext.s]/[SceneContext.ox]/[SceneContext.oy]. */
@@ -314,6 +339,7 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
         ef.drawProjectiles(snap, c.alpha)
         ef.drawTracers()
         ef.drawParticles(particles.buffers)
+        ef.drawBurst()
         val ov = overlays!!
         if (withOverlay && ov.hasWorldOverlay(overlay)) ov.drawWorld(snap, overlay)
         sink.restore()
@@ -380,13 +406,27 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
         sink.save()
         sink.clipCircle(cx, cy, r)
         sink.fillRect(cx - r, cy - r, 2f * r, 2f * r, Palette.OUTLINE)
-        // Himmel hinter der Lupe: Abendverlauf (ohne Berge)
-        sky4[0] = Palette.SKY_1; sky4[1] = Palette.SKY_2; sky4[2] = Palette.SKY_3; sky4[3] = Palette.SKY_4
-        sink.gradientRect(cx - r, cy - r, 2f * r, 2f * r, 0f, cy - r, 0f, cy + r, sky4, SKY4_STOPS)
         val s2 = scale * l.magnification
         val savedOx = c.ox; val savedOy = c.oy
-        c.setView(vw, vh, density, s2, cx - l.worldX * s2, cy - l.worldY * s2)
-        c.cullL = cx - r; c.cullR = cx + r; c.cullT = cy - r; c.cullB = cy + r
+        // Hintergrund (Himmel, Sonne, Berge, Wolken): derselbe Bildausschnitt wie in der Hauptansicht, um den Lupenpunkt
+        // vergrößert. Er wird mit den Parametern der Hauptkamera gezeichnet (Horizont, Verlauf, Sonne und Berge liegen
+        // dort, wo sie unter dem Finger liegen) und per Transformation 2× um den Bildschirmpunkt des Fingers (Welt→
+        // Bildschirm der Hauptansicht) in die Lupenmitte gelegt. Die Weltzeichnung unten nutzt die Lupenkamera.
+        run {
+            val fx0 = vw * 0.5f + (l.worldX - c.camX) * scale
+            val fy0 = vh * 0.5f + (l.worldY - c.camY) * scale
+            val m = l.magnification
+            c.setView(vw, vh, density, scale, savedOx, savedOy)
+            sink.save()
+            sink.translate(cx, cy)
+            sink.scale(m, m)
+            sink.translate(-fx0, -fy0)
+            bg!!.drawSky()
+            bg!!.drawClouds(fx.cloudPhase)
+            sink.restore()
+            c.setView(vw, vh, density, s2, cx - l.worldX * s2, cy - l.worldY * s2)
+            c.cullL = cx - r; c.cullR = cx + r; c.cullT = cy - r; c.cullB = cy + r
+        }
         // Gelände direkt (ohne Ebenen-Cache)
         sink.save()
         sink.translate(c.ox, c.oy)
@@ -400,9 +440,6 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
         // Sicht für den Rest des Frames zurücksetzen
         c.setView(vw, vh, density, scale, savedOx, savedOy)
     }
-
-    private val sky4 = IntArray(4)
-    private val SKY4_STOPS = floatArrayOf(0f, 0.4f, 0.75f, 1f)
 
     private fun layerKey(camera: Camera, vw: Float, vh: Float, density: Float, wi: WorldInfo): Long {
         var h = wi.mapHash.toLong()
@@ -430,7 +467,7 @@ class SceneRenderer(val config: SceneConfig = SceneConfig()) : GameRenderer {
             val t = rng.next()
             val x = ix[a] + (ix[b] - ix[a]) * t
             val y = iy[a] + (iy[b] - iy[a]) * t
-            if (rng.next() < 2.6f * fire * dt * red) {
+            if (rng.next() < SMOKE_RATE * fire * dt * red) {
                 // Rauchsäule beginnt über den Flammenspitzen und kippt mit dem Wind (Partikel-Update)
                 p.emit(ParticleKind.SMOKE, x, y - 1.1f - rng.next() * 0.5f, rng.range(-0.3f, 0.3f), rng.range(-1.2f, -0.5f), rng.range(2.2f, 3.4f), rng.range(0.45f, 0.8f))
             }

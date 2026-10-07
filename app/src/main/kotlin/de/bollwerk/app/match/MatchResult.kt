@@ -3,7 +3,7 @@ package de.bollwerk.app.match
 import java.util.Locale
 
 /** Warum die Partie endete (bestimmt die Unterzeile im Ergebnis-Screen). */
-enum class EndReason { ENEMY_REACTOR_DESTROYED, OWN_REACTOR_DESTROYED, SURRENDER }
+enum class EndReason { ENEMY_REACTOR_DESTROYED, OWN_REACTOR_DESTROYED, SURRENDER, TIMEOUT, DRAW }
 
 /** Kennzahlen des Gefechtsberichts (Mockup 7). */
 data class MatchStats(
@@ -26,11 +26,14 @@ data class MatchResult(
     val stats: MatchStats = MatchStats(),
 ) {
     val isVictory: Boolean
-        get() = config.mode == GameMode.HOTSEAT || winnerPlayerId == config.humanPlayerId
+        get() = if (config.mode == GameMode.HOTSEAT) winnerPlayerId >= 0 else winnerPlayerId == config.humanPlayerId
 
-    /** Spieler, dessen Teamfarbe im Banner steht (Sieger im Hotseat, sonst der Mensch). */
+    /** Unentschieden (beide Reaktoren im selben Tick bzw. am Rundenende zerstört): kein Sieger. */
+    val isDraw: Boolean get() = winnerPlayerId < 0
+
+    /** Spieler, dessen Teamfarbe im Banner steht (Sieger im Hotseat, sonst der Mensch; bei Unentschieden der Mensch). */
     val bannerPlayerId: Int
-        get() = if (config.mode == GameMode.HOTSEAT) winnerPlayerId else config.humanPlayerId
+        get() = if (config.mode == GameMode.HOTSEAT && winnerPlayerId >= 0) winnerPlayerId else config.humanPlayerId
 
     companion object {
         fun surrender(config: MatchConfig, loserPlayerId: Int, stats: MatchStats = MatchStats()) =

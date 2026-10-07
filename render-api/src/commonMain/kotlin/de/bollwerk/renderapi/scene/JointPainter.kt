@@ -98,9 +98,9 @@ internal class JointPainter(private val c: SceneContext) {
 
     private companion object {
         // Maße der Sprites (ProceduralTextures.jointWood/jointMetal/jointAnchor) in Metern
-        const val WOOD_W = 0.21f
+        const val WOOD_W = ProceduralTextures.JOINT_D * 0.5f
         const val WOOD_H = 0.16f
-        const val HEX_R = 0.21f
-        const val ANCHOR_R = 0.2f
+        const val HEX_R = ProceduralTextures.JOINT_D * 0.5f
+        const val ANCHOR_R = ProceduralTextures.JOINT_D * 0.5f
     }
 }

@@ -157,7 +157,7 @@ class PooledParticleSystem(
     private fun explosion(x: Float, y: Float, radius: Float, damage: Float, col: Int, wind: Float) {
         val r = if (radius < 0.5f) 0.5f else radius
         val k = (r / 2.5f).coerceIn(0.45f, 2.6f)
-        if (!reducedMotion) emit(ParticleKind.FLASH, x, y, 0f, 0f, FLASH_LIFE, r * 1.5f)
+        if (!reducedMotion) emit(ParticleKind.FLASH, x, y, 0f, 0f, FLASH_LIFE, minOf(r * 1.5f, FLASH_MAX_RADIUS))
         emit(ParticleKind.FIREBALL, x, y, 0f, 0f, 0.3f, r * 0.95f)
         emit(ParticleKind.SHOCKWAVE, x, y, 0f, 0f, 0.38f, r * 2.1f)
         val nCh = ((6f + damage / 20f).coerceIn(6f, 12f) * (if (reducedMotion) 0.6f else 1f) + 0.5f).toInt()
@@ -328,6 +328,8 @@ class PooledParticleSystem(
         /** Weiß-Blitz: ein Frame (1/50 s). */
         const val FLASH_LIFE: Float = 0.03f
         const val MUZZLE_LIFE: Float = 0.09f
+        /** Größter Radius des Blitz-Sterns (m): auch bei Reaktor-Explosionen nur ein örtlicher Lichtstern. */
+        const val FLASH_MAX_RADIUS: Float = 3.2f
         private const val G = 9.81f
         private const val TAU = (2.0 * PI).toFloat()
 

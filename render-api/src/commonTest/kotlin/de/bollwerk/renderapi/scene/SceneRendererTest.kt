@@ -81,13 +81,13 @@ class SceneRendererTest {
         // Balken je Material: Holz, Metall, Panzer, Tür benutzen je ihre Textur
         val tex = k.images.values.associateBy { it.id.substringBefore('@') }
         for (name in listOf("wood", "metal", "armour", "door")) {
-            val handle = k.images.entries.first { it.value.id.startsWith(name) }.key
-            assertTrue((k.regionHandles[handle] ?: 0) > 0, "$name beams must use their texture")
+            val used = k.images.entries.filter { it.value.id.startsWith(name) }.sumOf { k.regionHandles[it.key] ?: 0 }
+            assertTrue(used > 0, "$name beams must use their texture")
         }
         assertTrue(tex.containsKey("jointWood") && tex.containsKey("jointMetal") && tex.containsKey("jointAnchor"))
         for (name in listOf("jointWood", "jointMetal", "jointAnchor")) {
-            val handle = k.images.entries.first { it.value.id.startsWith(name) }.key
-            assertTrue((k.imageHandles[handle] ?: 0) > 0, "$name drawn")
+            val used = k.images.entries.filter { it.value.id.startsWith(name) }.sumOf { k.imageHandles[it.key] ?: 0 }
+            assertTrue(used > 0, "$name drawn")
         }
         // Wolken (4 Varianten sichtbar), Fahnen in Teamfarben, Flammen in Token-Farben
         assertTrue(k.images.entries.filter { it.value.id.startsWith("cloud") }.any { (k.imageHandles[it.key] ?: 0) > 0 })
@@ -370,11 +370,53 @@ class SceneRendererTest {
     fun highDensityScalesWorldAndTextures() {
         val sc = SyntheticScene().both()
         val s = Setup(sc, d = 2f, w = 1920, h = 864)
-        s.camera.setZoom(1f)
+        s.camera.setZoom(1f); s.camera.centerX = 32f; s.camera.centerY = 30f
         s.frame()
         assertTrue(s.sink.scales.any { kotlin.math.abs(it - 48f) < 1e-3f }, "24 dp/m * density 2")
-        val wood = s.sink.images.values.first { it.id.startsWith("wood") }
-        assertEquals(4 * 144, wood.width)
+        val woods = s.sink.images.values.filter { it.id.startsWith("wood") }
+        assertEquals(SceneContext.MIP_TPM.size, woods.size, "one wood texture per mip level")
+        for (tpm in SceneContext.MIP_TPM) assertTrue(woods.any { it.width == 4 * tpm }, "wood at $tpm texels/m")
+        // gezeichnet wird die Stufe, die die Bildschirmdichte (48 px/m) abdeckt: kleinste Stufe >= 0,92 * 48
+        assertEquals(listOf(4 * 54), usedWidths(s.sink, "wood"))
+    }
+
+    /** Breiten der Texturen mit Namensanfang [prefix], die im Frame tatsächlich gezeichnet wurden. */
+    private fun usedWidths(sink: RecordingDrawSink, prefix: String): List<Int> =
+        sink.images.entries.filter { it.value.id.startsWith(prefix) && ((sink.regionHandles[it.key] ?: 0) + (sink.imageHandles[it.key] ?: 0)) > 0 }
+            .map { it.value.width }.sorted()
+
+    @Test
+    fun textureMipFollowsTheScreenScaleSoBeamsDoNotShimmer() {
+        // Je Zoomstufe wird die Textur mit der nächsten ausreichenden Texeldichte gezeichnet (nie > ~1,1× herunterskaliert)
+        for (zoom in floatArrayOf(0.5f, 1f, 1.5f, 2.5f)) {
+            val s = Setup(SyntheticScene().both(), d = 1f, w = 1280, h = 576)
+            s.camera.setZoom(zoom); s.camera.centerX = 32f; s.camera.centerY = 30f
+            s.frame()
+            val px = 24f * zoom
+            val used = usedWidths(s.sink, "wood")
+            assertEquals(1, used.size, "zoom $zoom uses one wood level: $used")
+            val tpm = used[0] / 4
+            val expected = SceneContext.MIP_TPM.firstOrNull { it >= px * 0.92f } ?: SceneContext.MIP_TPM.last()
+            assertEquals(expected, tpm, "zoom $zoom (px/m = $px)")
+            assertTrue(tpm <= px * 1.6f + 24f, "no needlessly large level: $tpm for $px px/m")
+        }
+    }
+
+    @Test
+    fun jointPlatesAreFortyTwoCentimetres() {
+        // Stil-Bibel §4: Knotendurchmesser 0,42 m; das Sprite trägt Platte + Kontur, nicht mehr als ~0,6 m
+        for (tpm in SceneContext.MIP_TPM) {
+            val n = ProceduralTextures.jointSize(tpm)
+            val world = n.toFloat() / tpm
+            assertTrue(world >= ProceduralTextures.JOINT_D + 0.02f && world < 0.9f, "joint sprite $world m at $tpm")
+            // Plattenbreite in der Mitte (Zeile cy): opake Texel * 1/tpm ≈ 0,42 m
+            val t = ProceduralTextures.jointWood(tpm)
+            var cnt = 0
+            val row = n / 2
+            for (x in 0 until n) if ((t.argb[row * n + x] ushr 24) > 128) cnt++
+            val w = cnt.toFloat() / tpm
+            assertTrue(w >= ProceduralTextures.JOINT_D - 0.02f && w <= ProceduralTextures.JOINT_D + (2f * maxOf(1f, 1.2f * tpm / 72f) + 1.5f) / tpm + 0.03f, "wood plate width $w at $tpm")
+        }
     }
 
     @Test
@@ -667,7 +709,7 @@ class SceneRendererTest {
     }
 
     @Test
-    fun flagStandsOnTheReactorAndIgnoresForwardStubs() {
+    fun flagIgnoresForwardStubs() {
         fun flagHeads(stub: Boolean): List<RecordingDrawSink.PolyHead> {
             val sc = SyntheticScene().both()
             if (stub) {

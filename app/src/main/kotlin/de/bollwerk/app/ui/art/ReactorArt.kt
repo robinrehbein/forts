@@ -109,7 +109,7 @@ fun DrawScope.drawDestroyedReactor() {
         drawPath(flame, Brush.verticalGradient(listOf(BollwerkColors.FireMid, BollwerkColors.FireOuter), base.y - 13f * u, base.y))
         drawPath(
             Path().apply {
-                moveTo(base.x - 1.2f * u, base.y); quadraticBezierTo(base.x, base.y - 7f * u, base.x + 1.2f * u, base.y); close()
+                moveTo(base.x - 1.2f * u, base.y); quadraticTo(base.x, base.y - 7f * u, base.x + 1.2f * u, base.y); close()
             },
             BollwerkColors.FireInner,
         )
