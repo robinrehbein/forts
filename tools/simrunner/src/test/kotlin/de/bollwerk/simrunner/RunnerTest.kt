@@ -294,9 +294,11 @@ class RunnerTest {
     }
 
     @Test
-    fun aiFallbackIsReported() {
+    fun aiVsAiUsesStandardAiFromFactory() {
         val r = Runner.run(db, idlePlan(ticks = 30).copy(aiVsAi = true))
-        assertTrue(r.warnings.any { "IdleAi" in it })
+        assertEquals(2, r.agents.size)
+        assertTrue(r.agents.all { it.startsWith("StandardAi(") }, r.agents.toString())
+        assertTrue(r.warnings.none { "IdleAi" in it })
     }
 
     companion object {

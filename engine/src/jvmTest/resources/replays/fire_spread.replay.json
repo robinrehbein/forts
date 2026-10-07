@@ -1,0 +1,654 @@
+{
+    "formatVersion": 2,
+    "engineVersion": 1,
+    "contentVersion": "rule-tables-test",
+    "contentHash": 3951497756492307766,
+    "setup": {
+        "seed": 23,
+        "mapId": "rules",
+        "players": [
+            {
+                "controller": "HUMAN",
+                "difficulty": null
+            },
+            {
+                "controller": "HUMAN",
+                "difficulty": null
+            }
+        ],
+        "turnMode": "REALTIME",
+        "turnTicks": 0,
+        "startMetal": 600.0,
+        "startEnergy": 400.0,
+        "startFortBlueprint": null
+    },
+    "config": {
+        "dt": 0.016666668,
+        "substeps": 4,
+        "iterations": 6,
+        "gravity": 9.81,
+        "windAccelPerMps": 0.18,
+        "linearDamping": 0.55,
+        "groundFrictionRemoved": 0.6,
+        "nodeRadius": 0.12,
+        "nodeDisplayDiameter": 0.42,
+        "minNodeMass": 8.0,
+        "maxBeamLength": 6.0,
+        "minBeamLength": 0.5,
+        "nodeMergeRadius": 0.05,
+        "strainDamage": 40.0,
+        "minSplitLength": 0.8,
+        "creakRatio": 0.8,
+        "metalCap": 1000.0,
+        "energyCap": 400.0,
+        "projectileSubsteps": 2,
+        "minPower": 0.3,
+        "maxPower": 1.0,
+        "deleteRefund": 0.5,
+        "undoRefund": 1.0,
+        "undoDepth": 60,
+        "undoWindowTicks": 600,
+        "fire": {
+            "growthPerSec": 0.55,
+            "fuelPerSec": 0.075,
+            "hpLossBase": 0.03,
+            "hpLossScale": 0.09,
+            "spreadChancePerSec": 0.13,
+            "spreadThreshold": 0.5,
+            "windBias": 0.11,
+            "windBiasMin": 0.25,
+            "windBiasMax": 2.3,
+            "upwardBias": 1.35,
+            "igniteStart": 0.05
+        },
+        "repair": {
+            "hpFractionPerSec": 0.5,
+            "costFactor": 0.5
+        },
+        "debris": {
+            "belowGroundTicks": 360,
+            "belowGroundDepth": 0.35,
+            "decayAfterTicks": 840,
+            "decayChancePerSec": 0.6,
+            "impactMinSpeed": 4.0,
+            "impactDamageMin": 4.0,
+            "impactDamageMax": 90.0,
+            "hitCooldownTicks": 15,
+            "landedFxMinSpeed": 3.0,
+            "impactRadius": 0.2,
+            "maxAgeTicks": 2400
+        },
+        "door": {
+            "autoCloseTicks": 156,
+            "searchRadius": 4.2
+        },
+        "combat": {
+            "explosionDvCap": 16.0,
+            "directDvCap": 18.0,
+            "recoilDvCap": 5.0,
+            "deviceRayRadiusScale": 0.85,
+            "deviceSplashRadiusScale": 0.6,
+            "sourceIgnoreTicks": 15,
+            "doorShieldFactor": 0.3,
+            "doorShieldDistance": 0.2,
+            "splashDeviceFactor": 0.9,
+            "reactorBlastRadius": 6.5,
+            "reactorBlastDamage": 280.0,
+            "reactorBlastImpulse": 2600.0,
+            "reactorBlastIgniteRadius": 2.0,
+            "terrainSampleStep": 0.25,
+            "broadphaseCellSize": 2.0
+        },
+        "wind": {
+            "changeIntervalTicks": 1800,
+            "maxChange": 2.0
+        },
+        "turn": {
+            "resolveTicks": 360,
+            "handoverTicks": 180
+        }
+    },
+    "commands": [
+        {
+            "type": "placeBeam",
+            "tick": 0,
+            "playerId": 0,
+            "aNodeRef": -1,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 26.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 31.0,
+            "bY": 34.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 0,
+            "playerId": 1,
+            "aNodeRef": -1,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 94.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 89.0,
+            "bY": 34.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 0,
+            "deviceTypeId": 3,
+            "beamRef": 10,
+            "t": 0.1,
+            "sideNegative": true
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 0,
+            "deviceTypeId": 2,
+            "beamRef": 10,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 0,
+            "deviceTypeId": 1,
+            "beamRef": 1,
+            "t": 0.46666655,
+            "sideNegative": true
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 1,
+            "deviceTypeId": 3,
+            "beamRef": 11,
+            "t": 0.1,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 1,
+            "deviceTypeId": 2,
+            "beamRef": 11,
+            "t": 0.5,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2,
+            "playerId": 1,
+            "deviceTypeId": 1,
+            "beamRef": 6,
+            "t": 0.46666718,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 1830,
+            "playerId": 0,
+            "deviceTypeId": 7,
+            "beamRef": 10,
+            "t": 0.9,
+            "sideNegative": true
+        },
+        {
+            "type": "placeDevice",
+            "tick": 1830,
+            "playerId": 1,
+            "deviceTypeId": 7,
+            "beamRef": 11,
+            "t": 0.9,
+            "sideNegative": false
+        },
+        {
+            "type": "setAim",
+            "tick": 2080,
+            "playerId": 0,
+            "deviceRef": 8,
+            "angle": 1.2310681,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 2080,
+            "playerId": 0,
+            "deviceRef": 8
+        },
+        {
+            "type": "setAim",
+            "tick": 2450,
+            "playerId": 0,
+            "deviceRef": 8,
+            "angle": 1.2293923,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 2450,
+            "playerId": 0,
+            "deviceRef": 8
+        },
+        {
+            "type": "setAim",
+            "tick": 2820,
+            "playerId": 0,
+            "deviceRef": 8,
+            "angle": 1.2294025,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 2820,
+            "playerId": 0,
+            "deviceRef": 8
+        },
+        {
+            "type": "setAim",
+            "tick": 3190,
+            "playerId": 0,
+            "deviceRef": 8,
+            "angle": 1.2294025,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 3190,
+            "playerId": 0,
+            "deviceRef": 8
+        },
+        {
+            "type": "setAim",
+            "tick": 3560,
+            "playerId": 0,
+            "deviceRef": 8,
+            "angle": 1.2294025,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 3560,
+            "playerId": 0,
+            "deviceRef": 8
+        }
+    ],
+    "ticks": 5400,
+    "checkpoints": [
+        {
+            "tick": 0,
+            "hash": -7790095008962498580
+        },
+        {
+            "tick": 60,
+            "hash": -7327689531569050939
+        },
+        {
+            "tick": 120,
+            "hash": -24180850690109483
+        },
+        {
+            "tick": 180,
+            "hash": 8036776136737366089
+        },
+        {
+            "tick": 240,
+            "hash": 8805219676500511145
+        },
+        {
+            "tick": 300,
+            "hash": 824084359961806878
+        },
+        {
+            "tick": 360,
+            "hash": 5734336765016257678
+        },
+        {
+            "tick": 420,
+            "hash": -513551759047353110
+        },
+        {
+            "tick": 480,
+            "hash": -8507815236765376366
+        },
+        {
+            "tick": 540,
+            "hash": 1154698139872645155
+        },
+        {
+            "tick": 600,
+            "hash": -3855207206290415017
+        },
+        {
+            "tick": 660,
+            "hash": 171056159016117478
+        },
+        {
+            "tick": 720,
+            "hash": 3660661401800540566
+        },
+        {
+            "tick": 780,
+            "hash": 4663815759347010685
+        },
+        {
+            "tick": 840,
+            "hash": -236342282120748759
+        },
+        {
+            "tick": 900,
+            "hash": 7409748580393940501
+        },
+        {
+            "tick": 960,
+            "hash": -4219668653789929955
+        },
+        {
+            "tick": 1020,
+            "hash": -2416143393588707879
+        },
+        {
+            "tick": 1080,
+            "hash": 1507300287355751616
+        },
+        {
+            "tick": 1140,
+            "hash": 1786763065434814404
+        },
+        {
+            "tick": 1200,
+            "hash": -1043704278803146180
+        },
+        {
+            "tick": 1260,
+            "hash": 7467850022339316680
+        },
+        {
+            "tick": 1320,
+            "hash": 1985809851856952863
+        },
+        {
+            "tick": 1380,
+            "hash": -7643232363660527461
+        },
+        {
+            "tick": 1440,
+            "hash": -8445199386440879917
+        },
+        {
+            "tick": 1500,
+            "hash": -2463407497868642249
+        },
+        {
+            "tick": 1560,
+            "hash": 8597426395549888598
+        },
+        {
+            "tick": 1620,
+            "hash": 5122836589211955210
+        },
+        {
+            "tick": 1680,
+            "hash": 3724066029281865330
+        },
+        {
+            "tick": 1740,
+            "hash": -1506202186846308346
+        },
+        {
+            "tick": 1800,
+            "hash": -8710825612671956667
+        },
+        {
+            "tick": 1860,
+            "hash": -1910055598881017676
+        },
+        {
+            "tick": 1920,
+            "hash": -3683167024821072492
+        },
+        {
+            "tick": 1980,
+            "hash": 2676189724690360164
+        },
+        {
+            "tick": 2040,
+            "hash": 6907864094972233476
+        },
+        {
+            "tick": 2100,
+            "hash": -6033649485436850519
+        },
+        {
+            "tick": 2160,
+            "hash": 8930477688475595758
+        },
+        {
+            "tick": 2220,
+            "hash": -5032951736514291125
+        },
+        {
+            "tick": 2280,
+            "hash": -5260383369550945030
+        },
+        {
+            "tick": 2340,
+            "hash": -7546762746741298478
+        },
+        {
+            "tick": 2400,
+            "hash": 2101072339845987296
+        },
+        {
+            "tick": 2460,
+            "hash": -6899961351581666343
+        },
+        {
+            "tick": 2520,
+            "hash": 5457731856060637724
+        },
+        {
+            "tick": 2580,
+            "hash": -7827681329512607562
+        },
+        {
+            "tick": 2640,
+            "hash": 1438903646819420943
+        },
+        {
+            "tick": 2700,
+            "hash": -1156380997178503095
+        },
+        {
+            "tick": 2760,
+            "hash": -3822116882067648658
+        },
+        {
+            "tick": 2820,
+            "hash": -5759105649998377834
+        },
+        {
+            "tick": 2880,
+            "hash": 261060803591348251
+        },
+        {
+            "tick": 2940,
+            "hash": 242787211128216016
+        },
+        {
+            "tick": 3000,
+            "hash": 4856754644592699898
+        },
+        {
+            "tick": 3060,
+            "hash": 1143363631174542806
+        },
+        {
+            "tick": 3120,
+            "hash": -141821597703197607
+        },
+        {
+            "tick": 3180,
+            "hash": 4982624898929240264
+        },
+        {
+            "tick": 3240,
+            "hash": -3840025551585538344
+        },
+        {
+            "tick": 3300,
+            "hash": -1400599689422912204
+        },
+        {
+            "tick": 3360,
+            "hash": 6467781255273540867
+        },
+        {
+            "tick": 3420,
+            "hash": -5943925237236779193
+        },
+        {
+            "tick": 3480,
+            "hash": 5813682786215434392
+        },
+        {
+            "tick": 3540,
+            "hash": -8466238023487092624
+        },
+        {
+            "tick": 3600,
+            "hash": 317648408479991058
+        },
+        {
+            "tick": 3660,
+            "hash": -5926908770864534689
+        },
+        {
+            "tick": 3720,
+            "hash": 5128960461329812833
+        },
+        {
+            "tick": 3780,
+            "hash": 5698943626277802606
+        },
+        {
+            "tick": 3840,
+            "hash": 7199030252365668647
+        },
+        {
+            "tick": 3900,
+            "hash": 6963944963079643996
+        },
+        {
+            "tick": 3960,
+            "hash": 681203656572971850
+        },
+        {
+            "tick": 4020,
+            "hash": -5486323919491002692
+        },
+        {
+            "tick": 4080,
+            "hash": 7825551070150139768
+        },
+        {
+            "tick": 4140,
+            "hash": -7857226505934596127
+        },
+        {
+            "tick": 4200,
+            "hash": -5009606093350807355
+        },
+        {
+            "tick": 4260,
+            "hash": 4387668010293659193
+        },
+        {
+            "tick": 4320,
+            "hash": 958000897810137245
+        },
+        {
+            "tick": 4380,
+            "hash": -9124481924721948698
+        },
+        {
+            "tick": 4440,
+            "hash": 6266114136503806538
+        },
+        {
+            "tick": 4500,
+            "hash": -5584583785064523394
+        },
+        {
+            "tick": 4560,
+            "hash": -8955320442293714974
+        },
+        {
+            "tick": 4620,
+            "hash": 6983758376721921475
+        },
+        {
+            "tick": 4680,
+            "hash": 8996169928013137991
+        },
+        {
+            "tick": 4740,
+            "hash": 1854001070932026395
+        },
+        {
+            "tick": 4800,
+            "hash": -6489032475127941857
+        },
+        {
+            "tick": 4860,
+            "hash": -5847084114625174189
+        },
+        {
+            "tick": 4920,
+            "hash": -362903063957312716
+        },
+        {
+            "tick": 4980,
+            "hash": -1332312473333166360
+        },
+        {
+            "tick": 5040,
+            "hash": -7302777108391275540
+        },
+        {
+            "tick": 5100,
+            "hash": 6953127436712991008
+        },
+        {
+            "tick": 5160,
+            "hash": 6724268135157660249
+        },
+        {
+            "tick": 5220,
+            "hash": 19301458247383973
+        },
+        {
+            "tick": 5280,
+            "hash": 2703150381329528081
+        },
+        {
+            "tick": 5340,
+            "hash": -337711548140344387
+        },
+        {
+            "tick": 5400,
+            "hash": -816083666855832162
+        }
+    ]
+}

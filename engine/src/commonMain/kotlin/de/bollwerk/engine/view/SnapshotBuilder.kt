@@ -1,8 +1,12 @@
 package de.bollwerk.engine.view
 
+import de.bollwerk.engine.loop.OutcomeBuffer
 import de.bollwerk.engine.sim.DeviceFlags
 import de.bollwerk.engine.sim.DeviceRole
+import de.bollwerk.engine.sim.GameResult
 import de.bollwerk.engine.sim.GameState
+import de.bollwerk.engine.sim.TurnMode
+import de.bollwerk.engine.sim.TurnPhase
 
 /**
  * Füllt einen wiederverwendbaren [FrameSnapshot] aus dem [GameState] (nur im Sim-Thread aufrufen).
@@ -17,15 +21,41 @@ class SnapshotBuilder(
     var localPlayer: Int = 0,
 ) {
     private var seq = 0L
+    private var cachedHud: HudModel? = null
+    private var cachedState: GameState? = null
+    private var cachedTick = -1L
+    private var cachedPlayer = -1
+    private var cachedPaused = false
+    private var cachedSpeed = 1f
+
+    /**
+     * Hotseat: Das HUD zeigt die Sicht des jeweils **aktiven** Spielers (`turn.activePlayer`) statt [localPlayer].
+     * Ohne Zugmodus (activePlayer −1) gilt [localPlayer].
+     */
+    var followActivePlayer: Boolean = false
+
+    /** Loop-Zustand fürs HUD (vom `MatchRunner` vor jedem Build gesetzt; kein Sim-State). */
+    var paused: Boolean = false
+    var speed: Float = 1f
 
     /**
      * @param fx optional: Sammelpuffer der Session; wird in `out.fx` entleert. `out.fx` wird vorher geleert,
-     *   außer der Puffer wurde nie gelesen (`out.carryFx`, dann bleiben die alten Ereignisse erhalten).
+     *   außer der Puffer trägt noch ungelesene Ereignisse (`out.carryFx`, dann bleiben sie in Reihenfolge erhalten,
+     *   Fx älter als [MAX_CARRIED_FX_AGE_TICKS] fallen heraus).
+     * @param outcomes optional: Command-Ergebnisse seit dem letzten Build, gleiche Regel wie [fx] (`out.commandResults`).
+     * @param alpha Interpolationsfaktor für den Renderer (`GameLoop.alpha`), 1 = ohne Zwischenbild.
      */
-    fun build(state: GameState, out: FrameSnapshot, fx: FxBuffer? = null): FrameSnapshot {
+    fun build(
+        state: GameState,
+        out: FrameSnapshot,
+        fx: FxBuffer? = null,
+        outcomes: OutcomeBuffer? = null,
+        alpha: Float = 1f,
+    ): FrameSnapshot {
         val tables = state.tables
         out.seq = ++seq
         out.tick = state.tick
+        out.alpha = alpha
         out.wind = state.wind
         out.result = state.result
         val turn = state.turn
@@ -109,21 +139,58 @@ class SnapshotBuilder(
         }
         out.projectileCount = pc
 
-        if (out.carryFx) out.carryFx = false else out.fx.clear()
+        if (out.carryFx) {
+            out.carryFx = false
+            // Übernommene (ungelesene) Ereignisse: Fx altern aus, damit ein Leser nach langer Pause (Renderer abgehängt,
+            // noch nicht gestartet) nicht Minuten alte Explosionen auf einmal abspielt. Ergebnisse bleiben (nur nach Anzahl begrenzt).
+            val minTick = state.tick - MAX_CARRIED_FX_AGE_TICKS
+            out.fx.removeAll { it.tick < minTick }
+        } else {
+            out.fx.clear(); out.commandResults.clear()
+        }
         fx?.drainTo(out.fx)
-        out.hud = buildHud(state)
+        outcomes?.drainTo(out.commandResults)
+        trimOldest(out.fx, MAX_CARRIED_FX)
+        trimOldest(out.commandResults, MAX_CARRIED_RESULTS)
+        out.hud = hudFor(state)
         return out
     }
 
-    /** HUD-Werte für [localPlayer]; gegnerischer Reaktor = erster anderer Spieler mit Reaktor. */
+    /**
+     * HUD für den aktuellen Zustand; innerhalb eines Ticks (mehrere Snapshots mit anderem Alpha) und bei unveränderter
+     * Pause/Geschwindigkeit wird dieselbe, unveränderliche [HudModel]-Instanz wiederverwendet (keine Allokation je Frame).
+     * Wer den [GameState] außerhalb von Ticks verändert, ruft [invalidateHud] auf.
+     */
+    private fun hudFor(state: GameState): HudModel {
+        val player = hudPlayer(state)
+        val c = cachedHud
+        if (c != null && cachedState === state && cachedTick == state.tick && cachedPlayer == player &&
+            cachedPaused == paused && cachedSpeed == speed
+        ) return c
+        val h = buildHud(state)
+        cachedHud = h; cachedState = state; cachedTick = state.tick; cachedPlayer = player
+        cachedPaused = paused; cachedSpeed = speed
+        return h
+    }
+
+    /** Erzwingt beim nächsten [build] ein neu berechnetes HUD (nach Zustandsänderungen außerhalb von Ticks). */
+    fun invalidateHud() { cachedHud = null; cachedState = null }
+
+    /** Spieler, dessen Sicht das HUD zeigt: im Hotseat der aktive Spieler, sonst [localPlayer]. */
+    fun hudPlayer(state: GameState): Int {
+        val active = state.turn.activePlayer
+        return if (followActivePlayer && state.turn.mode == TurnMode.TURNS && active >= 0) active else localPlayer
+    }
+
+    /** HUD-Werte für [hudPlayer]; gegnerischer Reaktor = erster anderer Spieler mit Reaktor. */
     fun buildHud(state: GameState): HudModel {
-        val lp = localPlayer
+        val lp = hudPlayer(state)
         if (lp < 0 || lp >= state.players.size) return HudModel.EMPTY
         val me = state.players[lp]
         var enemy01 = 1f
         for (pl in state.players) {
             if (pl.id == lp) continue
-            enemy01 = reactor01(state, pl.reactorDeviceId)
+            enemy01 = reactor01(state, pl)
             break
         }
         val techs = ArrayList<Int>()
@@ -137,6 +204,7 @@ class SnapshotBuilder(
         val building = ArrayList<HudTechBuild>()
         val d = state.devices
         val tables = state.tables
+        val dt = state.config.dt
         for (i in 0 until d.size) {
             if (!d.isAlive(i) || d.ownerOf[i] != lp) continue
             val type = d.typeOf[i]
@@ -145,34 +213,66 @@ class SnapshotBuilder(
             if (props.weapon >= 0) {
                 val r = reload01(state, i)
                 val ready = r >= 1f && d.buildTicks[i] == 0 && (d.flags[i] and DeviceFlags.DISABLED) == 0
-                weapons.add(HudWeapon(d.ref(i), type, r, ready))
+                weapons.add(HudWeapon(d.ref(i), type, r, ready, build01(state, i), d.aimAngle[i], d.power[i]))
             }
-            if (props.role == DeviceRole.TECH && d.buildTicks[i] > 0) building.add(HudTechBuild(d.ref(i), type, build01(state, i)))
+            if (props.role == DeviceRole.TECH && d.buildTicks[i] > 0) {
+                building.add(HudTechBuild(d.ref(i), type, build01(state, i), d.buildTicks[i] * dt))
+            }
         }
-        val dt = state.config.dt
+        val turn = state.turn
+        val turns = turn.mode == TurnMode.TURNS
+        val phase = turn.phase
+        val over = state.result != GameResult.Ongoing
+        val canCommand = !over && me.alive && (!turns || (turn.activePlayer == lp && phase == TurnPhase.PLAY))
+        val handoverLeft = if (turns && phase == TurnPhase.HANDOVER) turn.ticksLeft * dt else 0f
         return HudModel(
             metal = me.metal, metalRate = me.metalRate, metalCap = me.metalCap,
             energy = me.energy, energyCap = me.energyCap, energyRate = me.energyRate,
             timeSeconds = state.tick * dt,
             windSpeed = state.wind,
-            ownReactor01 = reactor01(state, me.reactorDeviceId),
+            ownReactor01 = reactor01(state, me),
             enemyReactor01 = enemy01,
             localPlayer = lp,
-            activePlayer = state.turn.activePlayer,
-            turnNumber = state.turn.turnNumber,
-            turnSecondsLeft = state.turn.ticksLeft * dt,
+            activePlayer = turn.activePlayer,
+            turnNumber = turn.turnNumber,
+            turnSecondsLeft = if (turns && phase == TurnPhase.PLAY) turn.ticksLeft * dt else 0f,
             result = state.result,
             unlockedTechs = techs,
             weapons = weapons,
             buildingTech = building,
             undoCount = me.undoCount,
+            turnMode = turn.mode,
+            turnPhase = phase,
+            turnSecondsTotal = if (turns) state.turnState.lengthTicks * dt else 0f,
+            resolveSecondsLeft = if (turns && phase == TurnPhase.RESOLVE) turn.ticksLeft * dt else 0f,
+            handoverSecondsLeft = handoverLeft,
+            handoverCountdown = if (handoverLeft > 0f) ceilToInt(handoverLeft) else 0,
+            handover = turns && phase == TurnPhase.HANDOVER && !over,
+            canCommand = canCommand,
+            localAlive = me.alive,
+            playerCount = state.players.size,
+            paused = paused,
+            speed = speed,
         )
     }
 
-    private fun reactor01(state: GameState, r: Int): Float {
+    private fun ceilToInt(v: Float): Int {
+        val i = v.toInt()
+        // kleine Toleranz: 3 · 60 Ticks · dt ergibt 3,0000002 → trotzdem 3
+        return if (v - i > 1e-3f) i + 1 else i
+    }
+
+    /**
+     * TP-Anteil des Reaktors von [pl]. Ein freigegebener oder wiederbelegter Slot (anderer Besitzer/Typ) zählt als
+     * zerstört; `reactorDeviceId < 0` (noch keiner) als 1.
+     */
+    private fun reactor01(state: GameState, pl: de.bollwerk.engine.sim.PlayerState): Float {
+        val r = pl.reactorDeviceId
         if (r < 0) return 1f
         val d = state.devices
-        if (!d.isAlive(r)) return 0f
+        if (!pl.alive || !d.isAlive(r) || d.ownerOf[r] != pl.id) return 0f
+        val type = d.typeOf[r]
+        if (type < 0 || type >= state.tables.devices.size || state.tables.devices[type].role != DeviceRole.REACTOR) return 0f
         val mh = d.maxHpOf[r]
         return if (mh > 0f) d.hpOf[r] / mh else 0f
     }
@@ -199,6 +299,11 @@ class SnapshotBuilder(
         val left = d.buildTicks[i]
         if (total <= 0 || left <= 0) return 1f
         return 1f - left.toFloat() / total.toFloat()
+    }
+
+    private fun <T> trimOldest(list: MutableList<T>, max: Int) {
+        val extra = list.size - max
+        if (extra > 0) list.subList(0, extra).clear()
     }
 
     private fun capFor(n: Int): Int {
@@ -242,5 +347,14 @@ class SnapshotBuilder(
         s.projVx = s.projVx.copyOf(c); s.projVy = s.projVy.copyOf(c)
         s.projKind = s.projKind.copyOf(c); s.projOwner = s.projOwner.copyOf(c)
         s.projUid = s.projUid.copyOf(c); s.projFlags = s.projFlags.copyOf(c)
+    }
+
+    companion object {
+        /** Obergrenze der Fx je Snapshot beim Übernehmen ungelesener Puffer (entspricht `FxBuffer.capacity`). */
+        const val MAX_CARRIED_FX: Int = 2048
+        const val MAX_CARRIED_RESULTS: Int = 256
+
+        /** Übernommene Fx, die älter sind (Ticks, 1 s), werden verworfen. */
+        const val MAX_CARRIED_FX_AGE_TICKS: Long = 60L
     }
 }

@@ -3,6 +3,7 @@ package de.bollwerk.engine.tools
 import de.bollwerk.engine.command.Command
 import de.bollwerk.engine.command.CommandValidator
 import de.bollwerk.engine.command.RejectReason
+import de.bollwerk.engine.rules.RulesValidator
 import de.bollwerk.engine.view.GameView
 
 /*
@@ -28,13 +29,14 @@ sealed class ToolSelection {
  * Kontext eines Werkzeug-Aufrufs.
  * @property playerId lokaler Spieler.
  * @property pickRadiusM Fang-/Auswahlradius in Metern beim aktuellen Zoom (Prototyp: 26/34/16 px ÷ Maßstab).
- * @property validator derselbe Validator wie im Command-System (Ghost grün/rot, Grund).
+ * @property validator derselbe Validator wie im Command-System (Ghost grün/rot, Grund); Standard ist der echte
+ * [RulesValidator], damit Werkzeuge keine Regeln duplizieren.
  */
 class ToolContext(
     val view: GameView,
     val playerId: Int,
     val pickRadiusM: Float,
-    val validator: CommandValidator,
+    val validator: CommandValidator = RulesValidator,
 )
 
 /**
@@ -57,6 +59,17 @@ data class GhostBeam(
     val snapNodeRef: Long = -1,
     /** Balken-Ref, auf dem Ende B einrastet (Split), oder −1. */
     val snapBeamRef: Long = -1,
+    /** Teilungsparameter (0..1 vom Ende A des Balkens) bei [snapBeamRef] >= 0, sonst 0. */
+    val snapBeamT: Float = 0f,
+    /** Ende B ist auf einen 15°-Winkel eingerastet (Hilfslinie am Start zeichnen). */
+    val angleSnapped: Boolean = false,
+    /** Ende B ist auf die Höchstlänge (6 m) eingerastet. */
+    val lengthSnapped: Boolean = false,
+    /**
+     * Kettenanker noch nicht in der Sim (der vorige Balken wurde noch nicht ausgeführt): Ghost nur als Hinweis zeigen
+     * (weder grün noch rot, `valid == false`, `reason == null`); Loslassen sendet nichts.
+     */
+    val pending: Boolean = false,
 )
 
 /** Vorschau-Gerät (Stil-Bibel: halbtransparent, gestrichelter Ring grün/rot; "nur über Erz", "Platz belegt" …). */

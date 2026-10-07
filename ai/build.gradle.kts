@@ -21,6 +21,8 @@ kotlin {
             implementation(libs.kotlin.test)
         }
         jvmTest.dependencies {
+            // Testbank: echte Partien aus dem Content (MatchBootstrap); nur für Tests, kein Abhängigkeitszyklus
+            implementation(project(":setup"))
             implementation(libs.kotlin.test.junit5)
             implementation(project.dependencies.platform(libs.junit.bom))
             implementation(libs.junit.jupiter)

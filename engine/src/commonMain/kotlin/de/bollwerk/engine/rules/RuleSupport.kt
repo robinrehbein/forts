@@ -74,6 +74,48 @@ object RuleCost {
         val frac = if (maxHp > 0f) FloatMath.clamp(beams.hp(beamId) / maxHp, 0f, 1f) else 0f
         return view.simConfig.deleteRefund * mat.costPerMeter * length * frac
     }
+
+    /** Erstattetes Metall beim Abreißen von Gerät [deviceId]: `deleteRefund · costMetal`. */
+    fun deviceRefundMetal(view: GameView, deviceId: Int): Float =
+        view.simConfig.deleteRefund * view.tables.devices[view.deviceView.type(deviceId)].costMetal
+
+    /** Erstattete Energie beim Abreißen von Gerät [deviceId]: `deleteRefund · costEnergy`. */
+    fun deviceRefundEnergy(view: GameView, deviceId: Int): Float =
+        view.simConfig.deleteRefund * view.tables.devices[view.deviceView.type(deviceId)].costEnergy
+
+    /**
+     * Gesamte Rückerstattung beim Abreißen von Balken [beamId] (Balken nach TP + alle darauf stehenden Geräte) in [out]:
+     * `out[0]` = Metall, `out[1]` = Energie (überschrieben, nicht addiert). Ein brennender Balken wird nur gelöscht
+     * (Feuer aus), das Command-System erstattet dann nichts; diesen Fall prüft der Aufrufer.
+     */
+    fun deleteBeamRefund(view: GameView, beamId: Int, out: FloatArray) {
+        var metal = beamRefund(view, beamId)
+        var energy = 0f
+        val devices = view.deviceView
+        for (d in 0 until devices.size) {
+            if (!devices.isAlive(d) || devices.beam(d) != beamId) continue
+            metal += deviceRefundMetal(view, d)
+            energy += deviceRefundEnergy(view, d)
+        }
+        out[0] = metal
+        out[1] = energy
+    }
+
+    /** Reparaturkosten (Metall) je TP von Balken [beamId]: `costFactor · costPerMeter · restLength / maxHp` (0 ohne TP). */
+    fun repairCostPerHp(view: GameView, beamId: Int): Float {
+        val beams = view.beamView
+        val maxHp = beams.maxHp(beamId)
+        if (!(maxHp > 0f)) return 0f
+        val mat = view.tables.materials[beams.material(beamId)]
+        return view.simConfig.repair.costFactor * mat.costPerMeter * beams.restLength(beamId) / maxHp
+    }
+
+    /** Metall, das die Reparatur von Balken [beamId] bis auf volle TP kostet (Summe über alle Ticks, wenn genug Metall da ist). */
+    fun repairCostToFull(view: GameView, beamId: Int): Float {
+        val beams = view.beamView
+        val missing = FloatMath.max(0f, beams.maxHp(beamId) - beams.hp(beamId))
+        return repairCostPerHp(view, beamId) * missing
+    }
 }
 
 /** Gemeinsame Prüfungen. */

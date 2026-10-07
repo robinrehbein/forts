@@ -1,5 +1,6 @@
 package de.bollwerk.engine.view
 
+import de.bollwerk.engine.loop.CommandOutcome
 import de.bollwerk.engine.sim.GameResult
 import de.bollwerk.engine.sim.TurnMode
 import de.bollwerk.engine.sim.TurnPhase
@@ -23,6 +24,11 @@ class FrameSnapshot {
     var seq: Long = 0L
     /** Tick, aus dem der Snapshot stammt. */
     var tick: Long = 0L
+    /**
+     * Interpolationsfaktor 0..1 zwischen `*Prev*` und aktueller Position (vom `MatchRunner` aus `GameLoop.alpha` gesetzt;
+     * 1 = kein Zwischenbild, z. B. bei Snapshots ohne Loop).
+     */
+    var alpha: Float = 1f
     var wind: Float = 0f
     var result: GameResult = GameResult.Ongoing
     var turnMode: TurnMode = TurnMode.REALTIME
@@ -108,8 +114,15 @@ class FrameSnapshot {
     val fx: MutableList<FxEvent> = ArrayList()
 
     /**
-     * Intern (Sim-Thread): Dieser Puffer wurde veröffentlicht, aber nie gelesen; der nächste Build behält
-     * seine [fx], statt sie zu verwerfen. Gesetzt von `SnapshotExchange`.
+     * Ergebnisse aller Commands seit dem letzten gelesenen Snapshot (angenommen/abgelehnt mit `RejectReason`), in
+     * Anwendungsreihenfolge; gleiche Frische-Regel wie [fx] (je neuer [seq] genau einmal verarbeiten).
+     */
+    val commandResults: MutableList<CommandOutcome> = ArrayList()
+
+    /**
+     * Intern (Sim-Thread): Dieser Puffer war veröffentlicht, aber ungelesen, und wurde vom Schreiber zurückgeholt; der
+     * nächste Build behält seine [fx] und [commandResults] (in Reihenfolge) und hängt neue an, statt sie zu verwerfen.
+     * Gesetzt von `SnapshotExchange`.
      */
     var carryFx: Boolean = false
 

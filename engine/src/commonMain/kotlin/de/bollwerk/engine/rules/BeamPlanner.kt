@@ -37,6 +37,13 @@ class BeamPlan {
     val b: EndPoint = EndPoint()
     var length: Float = 0f
     var cost: Float = 0f
+
+    /**
+     * Beide Enden sind aufgelöst ([a]/[b] gültig und aktuell), auch wenn [BeamPlanner.plan] danach ablehnt (z. B.
+     * `OUT_OF_BUILD_ZONE`, `TOO_LONG`): Werkzeuge zeigen dann Ende und Länge trotzdem. `false` bei Ablehnung davor
+     * (unbekanntes Material, Tech, veraltete/fremde Refs).
+     */
+    var resolved: Boolean = false
 }
 
 /**
@@ -52,12 +59,14 @@ object BeamPlanner {
     fun plan(view: GameView, cmd: Command.PlaceBeam, out: BeamPlan = BeamPlan()): RejectReason? {
         val owner = cmd.playerId
         val tables = view.tables
+        out.resolved = false
         if (cmd.materialId !in tables.materials.indices) return RejectReason.UNKNOWN_CONTENT
         val mat = tables.materials[cmd.materialId]
         RuleChecks.techBlock(view, owner, mat.requiredTech)?.let { return it }
 
         resolve(view, owner, cmd.aNodeRef, cmd.aBeamRef, cmd.aBeamT, cmd.aX, cmd.aY, out.a)?.let { return it }
         resolve(view, owner, cmd.bNodeRef, cmd.bBeamRef, cmd.bBeamT, cmd.bX, cmd.bY, out.b)?.let { return it }
+        out.resolved = true
         val a = out.a
         val b = out.b
         if (a.kind == EndKind.NODE && b.kind == EndKind.NODE && a.node == b.node) return RejectReason.INVALID_TARGET

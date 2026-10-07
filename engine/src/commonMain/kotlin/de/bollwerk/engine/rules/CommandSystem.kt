@@ -179,11 +179,10 @@ object CommandApplier {
             return
         }
         val p = state.players[cmd.playerId]
-        p.metal += RuleCost.beamRefund(state, id)
-        val devices = state.devices
-        for (d in 0 until devices.size) {
-            if (devices.isAlive(d) && devices.beamId[d] == id) refundDevice(state, p.id, d)
-        }
+        val refund = FloatArray(2)
+        RuleCost.deleteBeamRefund(state, id, refund)
+        p.metal += refund[0]
+        p.energy += refund[1]
         BeamBreaker.breakBeam(state, ctx, id, 0.5f, BreakCause.DELETED)
     }
 
@@ -231,10 +230,9 @@ object CommandApplier {
 
     /** Erstattet `deleteRefund ·` Baukosten von Gerät [id]. */
     private fun refundDevice(state: GameState, player: Int, id: Int) {
-        val props = state.tables.devices[state.devices.typeOf[id]]
         val p = state.players[player]
-        p.metal += state.config.deleteRefund * props.costMetal
-        p.energy += state.config.deleteRefund * props.costEnergy
+        p.metal += RuleCost.deviceRefundMetal(state, id)
+        p.energy += RuleCost.deviceRefundEnergy(state, id)
     }
 
     private fun toggleDoor(state: GameState, ctx: StepContext, cmd: Command.ToggleDoor) {

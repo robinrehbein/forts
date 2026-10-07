@@ -47,12 +47,16 @@ expect class CommandInbox() {
  * Abholen auf `tick + inputDelayTicks` gesetzt (offline 0, Lockstep ~6), damit Commands nie in der
  * Vergangenheit liegen.
  */
-class LocalInputSource(val inputDelayTicks: Int = 0) : CommandSource {
+class LocalInputSource(
+    val inputDelayTicks: Int = 0,
+    /** `false` (z. B. Replay-Wiedergabe): [push] verwirft die Eingabe, nichts mischt sich in den Ablauf. */
+    val acceptInput: Boolean = true,
+) : CommandSource {
     private val inbox = CommandInbox()
     private val scratch = ArrayList<Command>()
 
     /** Thread-sicher. Der `tick` des Commands wird ignoriert und beim Abholen gesetzt. */
-    fun push(cmd: Command) = inbox.offer(cmd)
+    fun push(cmd: Command) { if (acceptInput) inbox.offer(cmd) }
 
     override fun commandsFor(tick: Long, view: GameView): List<Command> {
         scratch.clear()

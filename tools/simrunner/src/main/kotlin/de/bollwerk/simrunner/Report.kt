@@ -18,6 +18,15 @@ object Report {
         appendLine("result: ${describe(r.result)}")
         appendLine("beams: ${r.beamsStart} -> ${r.beamsEnd} alive (peak ${r.peakBeams}) | nodes: ${r.nodesEnd} | devices: ${r.devicesStart} -> ${r.devicesEnd} | device losses: ${r.deviceLosses}")
         appendLine("combat: shots=${r.shots} explosions=${r.explosions} peakProjectiles=${r.peakProjectiles} peakBurningBeams=${r.peakBurning}")
+        if (r.impacts > 0) {
+            appendLine(
+                f(
+                    "hits: %d/%d impacts on beams/devices (%.0f %%); by shooter: enemy %d (%.0f %% of impacts), own fort %d, debris %d",
+                    r.structureHits, r.impacts, 100.0 * r.structureHits / r.impacts, r.enemyHits, 100.0 * r.enemyHits / r.impacts,
+                    r.ownHits, r.debrisHits,
+                ),
+            )
+        }
         if (r.explosionLog.isNotEmpty()) {
             appendLine("first explosions: " + r.explosionLog.joinToString("; ") { f("t%d (%.1f, %.1f) r%.1f", it[0].toInt(), it[1], it[2], it[3]) })
         }

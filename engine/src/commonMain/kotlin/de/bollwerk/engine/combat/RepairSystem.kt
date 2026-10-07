@@ -1,5 +1,6 @@
 package de.bollwerk.engine.combat
 
+import de.bollwerk.engine.rules.RuleCost
 import de.bollwerk.engine.sim.BeamFlags
 import de.bollwerk.engine.sim.GameState
 import de.bollwerk.engine.sim.SimSystem
@@ -18,7 +19,6 @@ import de.bollwerk.engine.view.FxEvent
 class RepairSystem : SimSystem {
     override fun step(state: GameState, ctx: StepContext) {
         val beams = state.beams
-        val mats = state.tables.materials
         val rc = state.config.repair
         val dt = state.config.dt
         val n = beams.size
@@ -34,7 +34,7 @@ class RepairSystem : SimSystem {
             var heal = maxHp * rc.hpFractionPerSec * dt
             if (heal > missing) heal = missing
             val owner = beams.ownerOf[j]
-            val fullCost = rc.costFactor * mats[beams.materialOf[j]].costPerMeter * beams.restLen[j] / maxHp
+            val fullCost = RuleCost.repairCostPerHp(state, j)
             var cost = fullCost * heal
             if (owner >= 0 && owner < state.players.size) {
                 val pl = state.players[owner]

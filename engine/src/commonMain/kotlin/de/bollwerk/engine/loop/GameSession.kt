@@ -51,6 +51,9 @@ class GameSession(
     /** Weitere Quelle anhängen (Reihenfolge = Abfragereihenfolge). */
     fun addSource(source: CommandSource) { sources.add(source) }
 
+    /** Quelle **vor** allen bisherigen einreihen (wird zuerst abgefragt), z. B. die lokale Eingabe. */
+    fun addSourceFirst(source: CommandSource) { sources.add(0, source) }
+
     /** Sind alle Quellen für den aktuellen Tick bereit? */
     fun isReady(): Boolean {
         val t = state.tick
@@ -70,9 +73,13 @@ class GameSession(
         rejectedFx.clear()
         due.clear()
         queue.drain(t, due)
-        for (raw in due) {
-            // Verspätete Commands wirken jetzt; Tick angleichen, damit das Replay identisch abläuft.
-            val stamped = if (raw.tick == t) raw else raw.withTick(t)
+        // Verspätete Commands wirken jetzt; Tick angleichen, damit das Replay identisch abläuft.
+        var restamped = false
+        for (i in due.indices) if (due[i].tick != t) { due[i] = due[i].withTick(t); restamped = true }
+        // Nach dem Angleichen gilt (Tick, Spieler, Eingangsreihenfolge): genau die Reihenfolge, in der das Replay
+        // (ScriptedCommandSource/CommandQueue sortieren nach (Tick, Spieler)) sie wieder abspielt. Stabile Einfügesortierung.
+        if (restamped) sortByPlayerStable(due)
+        for (stamped in due) {
             val reason = precheck.validate(state, stamped)
             if (reason != null) {
                 reject(t, stamped, reason)
@@ -102,18 +109,37 @@ class GameSession(
     /** Aktueller StateHash. */
     fun hash(): Long = StateHash.of(state)
 
+    private fun sortByPlayerStable(list: MutableList<Command>) {
+        for (i in 1 until list.size) {
+            val c = list[i]
+            var j = i - 1
+            while (j >= 0 && list[j].playerId > c.playerId) { list[j + 1] = list[j]; j-- }
+            list[j + 1] = c
+        }
+    }
+
     private fun reject(t: Long, cmd: Command, reason: RejectReason) {
         recorder?.onCommand(t, cmd, CommandResult.Rejected(reason))
         rejectedFx.add(FxEvent.CommandRejected(t, Float.NaN, Float.NaN, cmd.playerId, reason))
     }
 }
 
-/** Zeichnet angenommene Commands für ein [Replay] auf. */
+/**
+ * Zeichnet angenommene Commands (und optional Hash-Prüfpunkte) für ein [Replay] auf. Abgelehnte Commands ändern den
+ * Zustand nicht und werden deshalb nicht aufgezeichnet; beim Abspielen gilt jede Ablehnung als Abweichung.
+ */
 class ReplayRecorder : CommandRecorder {
     private val accepted = ArrayList<Command>()
+    private val marks = ArrayList<HashCheckpoint>()
 
     override fun onCommand(tick: Long, cmd: Command, result: CommandResult) {
         if (result == CommandResult.Accepted) accepted.add(cmd)
+    }
+
+    /** Hash-Prüfpunkt zu [tick] (Anzahl bereits simulierter Ticks); doppelte Ticks werden ignoriert. */
+    fun checkpoint(tick: Long, hash: Long) {
+        if (marks.isNotEmpty() && marks[marks.size - 1].tick >= tick) return
+        marks.add(HashCheckpoint(tick, hash))
     }
 
     /** Erzeugt das Replay; [ticks] = bisher simulierte Ticks. */
@@ -123,6 +149,7 @@ class ReplayRecorder : CommandRecorder {
         contentVersion: String,
         contentHash: Long,
         ticks: Long,
+        checkpoints: List<HashCheckpoint> = marks.toList(),
     ): Replay = Replay(
         contentVersion = contentVersion,
         contentHash = contentHash,
@@ -130,8 +157,12 @@ class ReplayRecorder : CommandRecorder {
         config = config,
         commands = accepted.toList(),
         ticks = ticks,
+        checkpoints = checkpoints,
     )
 
     /** Bisher angenommene Commands. */
     val commands: List<Command> get() = accepted
+
+    /** Bisher aufgezeichnete Prüfpunkte. */
+    val checkpoints: List<HashCheckpoint> get() = marks
 }

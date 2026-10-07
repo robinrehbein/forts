@@ -6,6 +6,7 @@ import de.bollwerk.engine.command.CommandJson
 import de.bollwerk.engine.sim.MatchSetup
 import de.bollwerk.engine.sim.SimConfig
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Aufzeichnung einer Partie: Setup (Seed, Karte, Spieler, Zugmodus, Startressourcen) + Sim-Konfiguration +
@@ -28,9 +29,15 @@ data class Replay(
     val commands: List<Command> = emptyList(),
     /** Anzahl simulierter Ticks. */
     val ticks: Long = 0L,
+    /**
+     * StateHash nach `tick` simulierten Ticks (Tick 0 = Anfangszustand), alle [CHECKPOINT_INTERVAL] Ticks und am Ende;
+     * aufsteigend nach Tick. [ReplayVerifier] prüft sie beim Abspielen.
+     */
     val checkpoints: List<HashCheckpoint> = emptyList(),
 ) {
-    fun toJson(): String = CommandJson.encodeToString(serializer(), this)
+    /** @param pretty eingerückt (Golden-Dateien: lesbare Diffs). */
+    fun toJson(pretty: Boolean = false): String =
+        (if (pretty) PrettyJson else CommandJson).encodeToString(serializer(), this)
 
     /** @return Grund, warum dieses Replay mit dem laufenden Build nicht abspielbar ist, oder null. */
     fun incompatibility(contentHash: Long, engineVersion: Int = GameInfo.ENGINE_VERSION): String? = when {
@@ -43,7 +50,12 @@ data class Replay(
     companion object {
         const val FORMAT_VERSION: Int = 2
 
+        /** Abstand der Hash-Prüfpunkte in Ticks (1 s). */
+        const val CHECKPOINT_INTERVAL: Int = 60
+
         fun fromJson(text: String): Replay = CommandJson.decodeFromString(serializer(), text)
+
+        private val PrettyJson = Json(CommandJson) { prettyPrint = true }
     }
 }
 

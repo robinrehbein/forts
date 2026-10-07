@@ -44,7 +44,7 @@ data class SimArgs(
   --hash                  StateHash alle 60 Ticks und am Ende ausgeben
   --profile               ms/Tick (Mittel, p95, max) je SystemSlot
   --assert-stable         Exit-Code 1, wenn ein Balken bricht (Bruchursache ausser Abriss)
-  --ai-vs-ai              Beide Spieler von der KI steuern lassen (ai-Modul; sonst IdleAi), Ergebnis melden
+  --ai-vs-ai              Beide Spieler von der Standard-KI steuern lassen (AiFactory, Stufe: --difficulty), Ergebnis melden
   --render <png>          Szene als PNG rendern (Endzustand oder bei --at)
   --at <tick>             Render-Zeitpunkt, mehrfach erlaubt; Dateien erhalten den Suffix _t<tick>
   --width <px>            Bildbreite (Standard 1600)
