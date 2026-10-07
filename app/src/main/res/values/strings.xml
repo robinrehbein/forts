@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Arbeitstitel: identisch mit de.bollwerk.engine.GameInfo.TITLE -->
+    <string name="app_name" translatable="false">Bollwerk</string>
+    <string name="title_wordmark" translatable="false">BOLLWERK</string>
+
+    <!-- Allgemein -->
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_yes">Ja</string>
+    <string name="cd_back">Zurück</string>
+    <string name="percent_format">%1$d %%</string>
+
+    <!-- Hauptmenü -->
+    <string name="menu_tagline">Festungs-Artillerie</string>
+    <string name="menu_battle">Gefecht</string>
+    <string name="menu_hotseat">Hotseat</string>
+    <string name="menu_tutorial">Tutorial</string>
+    <string name="menu_settings">Einstellungen</string>
+    <string name="menu_to_main">Hauptmenü</string>
+    <string name="menu_version">Version %1$s · Prototyp</string>
+    <string name="menu_credits">Credits</string>
+    <string name="credits_title">Credits</string>
+    <string name="credits_body">Bollwerk ist ein Arbeitstitel. Schriften: Bebas Neue (Dharma Type) und Rajdhani (Indian Type Foundry), lizenziert unter der SIL Open Font License 1.1. Die Lizenztexte liegen der App bei.</string>
+
+    <!-- Tutorial (WP14b) -->
+    <string name="tutorial_offer_title">Erstes Gefecht?</string>
+    <string name="tutorial_offer_body">Das Tutorial führt dich in drei kurzen Schritten durch Bauen, Wirtschaft und Schießen. Es dauert etwa zwei Minuten, der Gegner wartet.</string>
+    <string name="tutorial_offer_start">Tutorial starten</string>
+    <string name="tutorial_offer_later">Später</string>
+    <string name="tutorial_step">Schritt %1$d / %2$d</string>
+    <string name="tutorial_skip">Überspringen</string>
+    <string name="tutorial_step1_title">Balken bauen</string>
+    <string name="tutorial_step2_title">Mine bauen</string>
+    <string name="tutorial_step3_title">Mörser feuern</string>
+    <string name="tutorial_pick_wood">Tippe unten auf HOLZ, um einen Holzbalken zu wählen.</string>
+    <string name="tutorial_draw_beam">Ziehe von einem pulsierenden Knoten zum anderen.</string>
+    <string name="tutorial_pick_mine">Tippe unten auf MINE. Sie fördert Metall, aber nur über Erz.</string>
+    <string name="tutorial_place_mine">Tippe auf die Markierung über dem Erz, um die Mine zu setzen.</string>
+    <string name="tutorial_enter_aim">Wechsle mit ZIELEN in den Zielmodus.</string>
+    <string name="tutorial_aim_fire">Ziehe in Schussrichtung, dann tippe FEUER. Die Zuglänge bestimmt die Kraft.</string>
+    <string name="tutorial_aim_release">Ziehe in Schussrichtung und lass los, um zu feuern. Die Zuglänge bestimmt die Kraft.</string>
+    <string name="tutorial_back_to_build">Wechsle mit BAUEN zurück in den Baumodus.</string>
+    <string name="tutorial_drag_label">Zugrichtung = Schussrichtung</string>
+    <string name="tutorial_ore_label">Erz</string>
+    <string name="tutorial_done_title">Tutorial geschafft</string>
+    <string name="tutorial_done_body">Gut gemacht! Jetzt schlägt der Gegner zurück: Verteidige deine Festung und zerstöre seinen Reaktor.</string>
+    <string name="tutorial_done_continue">Weiter</string>
+
+    <!-- Gefecht-Setup -->
+    <string name="setup_title">Gefecht</string>
+    <string name="setup_title_hotseat">Hotseat</string>
+    <string name="setup_subtitle">Neue Partie einrichten</string>
+    <string name="setup_map">Karte</string>
+    <string name="map_schlucht">Schlucht</string>
+    <string name="map_schlucht_desc">Kluft 40 m breit, 18 m tief</string>
+    <string name="map_huegel">Hügel</string>
+    <string name="map_huegel_desc">Offenes Gelände, Senke in der Mitte</string>
+    <string name="map_depth_label">%1$d m</string>
+    <string name="map_width_chip">Breite %1$d m</string>
+    <string name="map_wind_medium">Wind mittel</string>
+    <string name="map_wind_strong">Wind stark</string>
+    <string name="setup_ai_strength">KI-Stärke</string>
+    <string name="ai_easy">Leicht</string>
+    <string name="ai_normal">Normal</string>
+    <string name="ai_hard">Schwer</string>
+    <string name="ai_easy_desc">Baut wenig, zielt mit großer Streuung</string>
+    <string name="ai_normal_desc">Baut solide, zielt mit leichter Streuung</string>
+    <string name="ai_hard_desc">Baut dicht, zielt fast exakt</string>
+    <string name="setup_hotseat_hint">Zwei Spieler, ein Gerät: Pro Zug %1$d s, zwischen den Zügen wird der Bildschirm verdeckt.</string>
+    <string name="setup_resources">Startressourcen</string>
+    <string name="res_scarce">Knapp</string>
+    <string name="res_normal">Normal</string>
+    <string name="res_rich">Reich</string>
+    <string name="setup_team">Teamfarbe</string>
+    <string name="team_blue">Blau</string>
+    <string name="team_red">Rot</string>
+    <string name="setup_team_hint">Gegner spielt %1$s</string>
+    <string name="setup_summary">Partie</string>
+    <string name="setup_summary_ai">%1$s · KI %2$s · %3$s</string>
+    <string name="setup_summary_hotseat">%1$s · Hotseat · %2$s</string>
+    <string name="setup_start">Starten</string>
+
+    <!-- Einstellungen -->
+    <string name="settings_subtitle">Ton, Steuerung, Anzeige</string>
+    <string name="settings_section_audio">Ton</string>
+    <string name="settings_section_controls">Steuerung</string>
+    <string name="settings_section_display">Anzeige</string>
+    <string name="settings_sound">Effekt-Lautstärke</string>
+    <string name="settings_music">Musik-Lautstärke</string>
+    <string name="settings_music_soon">Kommt später</string>
+    <string name="settings_left_handed">Linkshänder-Layout</string>
+    <string name="settings_left_handed_desc">Spiegelt Werkzeugleiste und Feuer-Knopf</string>
+    <string name="settings_release_fire">Loslassen = Feuern</string>
+    <string name="settings_release_fire_desc">Schuss löst beim Loslassen der Geste aus</string>
+    <string name="settings_reduced_fx">Reduzierte Effekte</string>
+    <string name="settings_reduced_fx_desc">Weniger Partikel, kein Kamera-Wackeln</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_value">Folgt dem System</string>
+
+    <!-- Spiel / Pause -->
+    <string name="game_pause_cd">Pause</string>
+    <string name="pause_title">Pause</string>
+    <string name="pause_resume">Fortsetzen</string>
+    <string name="pause_restart">Neustart</string>
+    <string name="pause_surrender">Aufgeben</string>
+    <string name="confirm_restart_title">Partie neu starten?</string>
+    <string name="confirm_restart_body">Der aktuelle Fortschritt geht verloren.</string>
+    <string name="confirm_surrender_title">Aufgeben?</string>
+    <string name="confirm_surrender_body">Die Partie zählt als verloren.</string>
+    <string name="confirm_menu_title">Zum Hauptmenü?</string>
+    <string name="confirm_menu_body">Die laufende Partie wird beendet.</string>
+
+    <!-- Ergebnis -->
+    <string name="result_victory">Sieg</string>
+    <string name="result_defeat">Niederlage</string>
+    <string name="result_player_label">Spieler %1$d · %2$s</string>
+    <string name="reason_enemy_reactor">Gegnerischer Reaktor zerstört</string>
+    <string name="reason_own_reactor">Eigener Reaktor zerstört</string>
+    <string name="reason_surrender">Aufgegeben</string>
+    <string name="result_report">Gefechtsbericht</string>
+    <string name="result_context_ai">%1$s · KI %2$s</string>
+    <string name="result_context_hotseat">%1$s · Hotseat</string>
+    <string name="stat_duration">Dauer</string>
+    <string name="stat_shots">Schüsse</string>
+    <string name="stat_hits">Treffer</string>
+    <string name="stat_built">Balken gebaut</string>
+    <string name="stat_lost">Balken verloren</string>
+    <string name="result_rematch">Revanche</string>
+
+    <!-- Hotseat-Übergabe -->
+    <string name="handover_label">Hotseat · Zug %1$d</string>
+    <string name="handover_title" tools:ignore="PluralsCandidate">Gerät an Spieler %1$d übergeben</string>
+    <string name="handover_player_chip">Spieler %1$d · %2$s</string>
+    <string name="handover_turn_chip">Zug %1$d s</string>
+    <string name="handover_hidden" tools:ignore="PluralsCandidate">Der Bildschirm bleibt verdeckt, bis Spieler %1$d bereit ist.</string>
+    <string name="handover_countdown_label">Start in Sekunden</string>
+    <string name="handover_waiting_label">Wartet auf Bereit</string>
+    <string name="handover_ready">Bereit</string>
+    <string name="handover_tip_label">Tipp</string>
+    <string-array name="handover_tips">
+        <item>Türen schließen, bevor du übergibst</item>
+        <item>Reparieren ist günstiger als neu bauen</item>
+        <item>Prüfe den Wind, bevor du schießt</item>
+        <item>Schütze den Reaktor mit Panzerbalken</item>
+        <item>Hohe Windturbinen liefern mehr Energie</item>
+    </string-array>
+
+    <!-- Spiel / HUD (WP9) -->
+    <string name="game_loading">Gefecht wird vorbereitet …</string>
+    <string name="hud_metal">Metall</string>
+    <string name="hud_energy">Energie</string>
+    <string name="hud_time">Zeit</string>
+    <string name="hud_wind">Wind</string>
+    <string name="hud_wind_unit">m/s</string>
+    <string name="hud_rate">%1$s/s</string>
+    <string name="hud_energy_cap">/%1$d</string>
+    <string name="hud_enemy">Spieler %1$d</string>
+    <string name="hud_turn_player">Spieler %1$d · Zug %2$d</string>
+    <string name="hud_resolve">Auswertung</string>
+    <string name="hud_per_meter">/m</string>
+    <string name="hud_wind_left_cd">Wind nach links</string>
+    <string name="hud_wind_right_cd">Wind nach rechts</string>
+    <string name="tool_weapons">Waffen</string>
+    <string name="tool_techtree">Techbaum</string>
+    <string name="tool_undo">Zurück</string>
+    <string name="tool_repair">Reparatur</string>
+    <string name="tool_delete">Abreißen</string>
+    <string name="tool_door">Tür auf/zu</string>
+    <string name="tool_more">Mehr</string>
+    <string name="tool_repair_short">Repar.</string>
+    <string name="tool_delete_short">Abriss</string>
+    <string name="tool_door_short">Tür</string>
+    <string name="tool_none">Bauen</string>
+    <string name="mode_aim">Zielen</string>
+    <string name="mode_build">Bauen</string>
+    <string name="aim_angle_power">Winkel · Kraft</string>
+    <string name="aim_power">Kraft</string>
+    <string name="aim_door_open">Tür offen</string>
+    <string name="aim_door_closed">Tür zu</string>
+    <string name="aim_fire">Feuer</string>
+    <string name="aim_seconds">%1$s s</string>
+    <string name="aim_building">im Bau</string>
+    <string name="aim_no_weapon">Keine Waffe</string>
+    <string name="aim_pick_weapon">Waffe antippen, dann ziehen</string>
+    <string name="aim_splash">%1$s · Splash %2$s m</string>
+    <string name="aim_wind_drift">Wind %1$s m</string>
+    <string name="aim_next_weapon_cd">Waffe wechseln</string>
+    <string name="aim_weapon_cycle">%1$d/%2$d · Waffe wechseln</string>
+    <string name="aim_weapon_cycle_short">%1$d/%2$d · Wechseln</string>
+    <string name="aim_weapon_count">%1$d/%2$d</string>
+    <string name="kind_mg">Salve</string>
+    <string name="kind_sniper">Durchschlag</string>
+    <string name="kind_mortar">Granate</string>
+    <string name="kind_cannon">Kugel</string>
+    <string name="kind_rocket">Brandsatz</string>
+    <string name="kind_laser">Strahl</string>
+    <string name="tech_title">Techbaum</string>
+    <string name="tech_subtitle">Gebäude bauen, um Waffen und Materialien freizuschalten · Kosten je Schuss bzw. je Meter</string>
+    <string name="tech_built">Gebaut</string>
+    <string name="tech_building">Im Bau · %1$d %%</string>
+    <string name="tech_available">Verfügbar</string>
+    <string name="tech_locked">Gesperrt</string>
+    <string name="tech_active">Aktiv</string>
+    <string name="tech_level">Stufe 1</string>
+    <string name="tech_ready_in">Fertig in %1$s</string>
+    <string name="tech_build">Bauen</string>
+    <string name="tech_requires">Benötigt %1$s</string>
+    <string name="tech_damage">Schaden %1$d</string>
+    <string name="tech_range">Reichweite %1$d\u00A0m</string>
+    <string name="tech_salvo" tools:ignore="PluralsCandidate">%1$d × %2$d Salve</string>
+    <string name="tech_incendiary">%1$d + Brand</string>
+    <string name="tech_beam">%1$d/s für %2$d s</string>
+    <string name="tech_seconds">%1$d s</string>
+    <string name="tech_close_cd">Techbaum schließen</string>
+    <string name="ctx_repair">Reparieren</string>
+    <string name="ctx_delete">Abreißen</string>
+    <string name="ctx_door_open">Tür öffnen</string>
+    <string name="ctx_door_close">Tür schließen</string>
+    <string name="ctx_extinguish">Löschen</string>
+    <string name="end_turn">Zug beenden</string>
+    <string name="end_turn_short">Zug Ende</string>
+    <string name="scene_apex">SCHEITEL %1$d m</string>
+    <string name="result_draw">Unentschieden</string>
+    <string name="reason_timeout">Zeit abgelaufen</string>
+    <string name="reason_draw">Beide Reaktoren zerstört</string>
+    <string name="settings_haptics">Vibration</string>
+    <string name="settings_haptics_desc">Leichte Vibration bei eigenen Schüssen und Treffern</string>
+
+    <!-- Bauteile (Content-nameKeys) -->
+    <string name="material_wood">Holz</string>
+    <string name="material_metal">Metall</string>
+    <string name="material_armour">Panzer</string>
+    <string name="material_rope">Seil</string>
+    <string name="material_door">Tür</string>
+    <string name="device_reactor">Reaktor</string>
+    <string name="device_mine">Mine</string>
+    <string name="device_turbine">Turbine</string>
+    <string name="device_workshop">Werkstatt</string>
+    <string name="device_armoury">Waffenkammer</string>
+    <string name="device_upgrade_center">Upgrade-Zentrum</string>
+    <string name="device_factory">Fabrik</string>
+    <string name="device_mg">MG</string>
+    <string name="device_sniper">Scharfschütze</string>
+    <string name="device_mortar">Mörser</string>
+    <string name="device_cannon">Kanone</string>
+    <string name="device_rocket">Brandrakete</string>
+    <string name="device_laser">Laser</string>
+
+    <!-- Ablehnungsgründe (RejectReason.displayKey) -->
+    <string name="reject_not_enough_metal">Zu wenig Metall</string>
+    <string name="reject_not_enough_energy">Zu wenig Energie</string>
+    <string name="reject_too_long">Zu lang</string>
+    <string name="reject_too_short">Zu kurz</string>
+    <string name="reject_not_connected">Nicht verbunden</string>
+    <string name="reject_out_of_build_zone">Außerhalb der Bauzone</string>
+    <string name="reject_blocked_by_terrain">Gelände im Weg</string>
+    <string name="reject_duplicate_beam">Balken existiert schon</string>
+    <string name="reject_occupied">Platz belegt</string>
+    <string name="reject_locked_tech">Noch nicht freigeschaltet</string>
+    <string name="reject_invalid_target">Ungültiges Ziel</string>
+    <string name="reject_stale_target">Ziel existiert nicht mehr</string>
+    <string name="reject_not_owner">Nicht dein Bauteil</string>
+    <string name="reject_not_your_turn">Nicht dein Zug</string>
+    <string name="reject_reloading">Lädt nach</string>
+    <string name="reject_still_building">Noch im Bau</string>
+    <string name="reject_needs_ore">Nur über Erz</string>
+    <string name="reject_top_mount_only">Nur oben montierbar</string>
+    <string name="reject_unique_limit">Nur einmal erlaubt</string>
+    <string name="reject_reactor_protected">Reaktor ist geschützt</string>
+    <string name="reject_nothing_to_undo">Nichts zurückzunehmen</string>
+    <string name="reject_undo_blocked">Zurück nicht möglich (beschädigt)</string>
+    <string name="reject_unknown_content">Unbekanntes Bauteil</string>
+    <string name="reject_game_over">Spiel ist vorbei</string>
+
+    <!-- Einmalige Gesten-Hinweise -->
+    <string name="tip_pinch_zoom">Zwei Finger: zoomen und verschieben</string>
+    <string name="tip_double_tap">Doppeltipp: Festung/Übersicht</string>
+    <string name="tip_long_press">Lange drücken: Reparieren, Abreißen, Tür</string>
+    <string name="tip_dismiss_cd">Hinweis schließen</string>
+</resources>

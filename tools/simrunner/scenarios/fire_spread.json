@@ -1,0 +1,11 @@
+{
+  "name": "fire_spread",
+  "description": "Eine Brandrakete trifft die linke Wand der rechten Festung (Holz); Ausbreitung ueber gemeinsame Knoten, windabhaengig.",
+  "map": "schlucht",
+  "seed": 1,
+  "ticks": 2400,
+  "commands": [
+    { "tick": 30, "action": "spawnProjectiles", "player": 0, "weapon": "rocket", "incendiary": true, "projectiles": 1, "x": 76, "y": 27, "vx": 30, "vy": 0 },
+    { "tick": 600, "action": "spawnProjectiles", "player": 0, "weapon": "rocket", "incendiary": true, "projectiles": 1, "x": 76, "y": 24, "vx": 30, "vy": 1 }
+  ]
+}

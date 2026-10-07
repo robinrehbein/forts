@@ -1,0 +1,1771 @@
+{
+    "formatVersion": 2,
+    "engineVersion": 2,
+    "contentVersion": "0.2.0-wp1",
+    "contentHash": -8354307914499382598,
+    "setup": {
+        "seed": 103,
+        "mapId": "huegel",
+        "players": [
+            {
+                "controller": "AI",
+                "difficulty": "HARD"
+            },
+            {
+                "controller": "AI",
+                "difficulty": "HARD"
+            }
+        ],
+        "turnMode": "REALTIME",
+        "turnTicks": 0,
+        "startMetal": 400.0,
+        "startEnergy": 200.0,
+        "startFortBlueprint": null
+    },
+    "config": {
+        "dt": 0.016666668,
+        "substeps": 4,
+        "iterations": 6,
+        "gravity": 9.81,
+        "windAccelPerMps": 0.18,
+        "linearDamping": 0.55,
+        "groundFrictionRemoved": 0.6,
+        "nodeRadius": 0.12,
+        "nodeDisplayDiameter": 0.42,
+        "minNodeMass": 8.0,
+        "maxBeamLength": 6.0,
+        "minBeamLength": 0.5,
+        "nodeMergeRadius": 0.05,
+        "strainDamage": 40.0,
+        "minSplitLength": 0.8,
+        "creakRatio": 0.8,
+        "metalCap": 1000.0,
+        "energyCap": 400.0,
+        "projectileSubsteps": 2,
+        "minPower": 0.3,
+        "maxPower": 1.0,
+        "deleteRefund": 0.5,
+        "undoRefund": 1.0,
+        "undoDepth": 60,
+        "undoWindowTicks": 600,
+        "fire": {
+            "growthPerSec": 0.55,
+            "fuelPerSec": 0.075,
+            "hpLossBase": 0.03,
+            "hpLossScale": 0.09,
+            "spreadChancePerSec": 0.13,
+            "spreadThreshold": 0.5,
+            "windBias": 0.11,
+            "windBiasMin": 0.25,
+            "windBiasMax": 2.3,
+            "upwardBias": 1.35,
+            "igniteStart": 0.05
+        },
+        "repair": {
+            "hpFractionPerSec": 0.5,
+            "costFactor": 0.5
+        },
+        "debris": {
+            "belowGroundTicks": 360,
+            "belowGroundDepth": 0.35,
+            "decayAfterTicks": 840,
+            "decayChancePerSec": 0.6,
+            "impactMinSpeed": 4.0,
+            "impactDamageMin": 4.0,
+            "impactDamageMax": 90.0,
+            "hitCooldownTicks": 15,
+            "landedFxMinSpeed": 3.0,
+            "impactRadius": 0.2,
+            "maxAgeTicks": 2400
+        },
+        "door": {
+            "autoCloseTicks": 156,
+            "searchRadius": 4.2
+        },
+        "combat": {
+            "explosionDvCap": 16.0,
+            "directDvCap": 18.0,
+            "recoilDvCap": 5.0,
+            "deviceRayRadiusScale": 0.85,
+            "deviceSplashRadiusScale": 0.6,
+            "sourceIgnoreTicks": 15,
+            "doorShieldFactor": 0.3,
+            "doorShieldDistance": 0.2,
+            "splashDeviceFactor": 0.9,
+            "reactorBlastRadius": 6.5,
+            "reactorBlastDamage": 280.0,
+            "reactorBlastImpulse": 2600.0,
+            "reactorBlastIgniteRadius": 2.0,
+            "terrainSampleStep": 0.25,
+            "broadphaseCellSize": 2.0
+        },
+        "wind": {
+            "changeIntervalTicks": 1800,
+            "maxChange": 2.0
+        },
+        "turn": {
+            "resolveTicks": 360,
+            "handoverTicks": 180
+        }
+    },
+    "commands": [
+        {
+            "type": "setAim",
+            "tick": 0,
+            "playerId": 0,
+            "deviceRef": 3,
+            "angle": 0.3073061,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 0,
+            "playerId": 0,
+            "deviceRef": 3
+        },
+        {
+            "type": "placeDevice",
+            "tick": 0,
+            "playerId": 0,
+            "deviceTypeId": 2,
+            "beamRef": 11,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "setAim",
+            "tick": 0,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.833215,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 0,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "placeDevice",
+            "tick": 0,
+            "playerId": 1,
+            "deviceTypeId": 2,
+            "beamRef": 50,
+            "t": 0.5,
+            "sideNegative": false
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 20,
+            "playerId": 0,
+            "beamRef": 27
+        },
+        {
+            "type": "setAim",
+            "tick": 20,
+            "playerId": 0,
+            "deviceRef": 4,
+            "angle": 0.41931805,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 20,
+            "playerId": 0,
+            "deviceRef": 4
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 20,
+            "playerId": 1,
+            "beamRef": 66
+        },
+        {
+            "type": "setAim",
+            "tick": 20,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.7113104,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 20,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 0,
+            "aNodeRef": 27,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 21.0,
+            "aY": 34.0,
+            "bNodeRef": 0,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 24.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 0,
+            "aNodeRef": 27,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 21.0,
+            "aY": 34.0,
+            "bNodeRef": 5,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 18.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 0,
+            "aNodeRef": 5,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 18.0,
+            "aY": 34.0,
+            "bNodeRef": 6,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 15.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 1,
+            "aNodeRef": 41,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 139.0,
+            "aY": 34.0,
+            "bNodeRef": 7,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 136.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 1,
+            "aNodeRef": 41,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 139.0,
+            "aY": 34.0,
+            "bNodeRef": 12,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 142.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 40,
+            "playerId": 1,
+            "aNodeRef": 12,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 142.0,
+            "aY": 34.0,
+            "bNodeRef": 13,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 145.0,
+            "bY": 34.0,
+            "materialId": 1
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 60,
+            "playerId": 0,
+            "beamRef": 28
+        },
+        {
+            "type": "placeBeam",
+            "tick": 60,
+            "playerId": 0,
+            "aNodeRef": 27,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 21.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 21.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 60,
+            "playerId": 0,
+            "aNodeRef": -1,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 21.0,
+            "aY": 31.0,
+            "bNodeRef": 14,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 24.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 60,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "placeBeam",
+            "tick": 60,
+            "playerId": 1,
+            "aNodeRef": 41,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 139.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 139.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 60,
+            "playerId": 1,
+            "aNodeRef": -1,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 139.0,
+            "aY": 31.0,
+            "bNodeRef": 28,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 136.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 0,
+            "aNodeRef": 5,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 18.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 18.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 0,
+            "aNodeRef": 42,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 21.0,
+            "aY": 31.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 18.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 0,
+            "aNodeRef": 6,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 15.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 15.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 1,
+            "aNodeRef": 12,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 142.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 142.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 1,
+            "aNodeRef": 43,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 139.0,
+            "aY": 31.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 142.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 80,
+            "playerId": 1,
+            "aNodeRef": 13,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 145.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 145.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 100,
+            "playerId": 0,
+            "aNodeRef": 5,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 18.0,
+            "aY": 34.0,
+            "bNodeRef": 42,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 21.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 100,
+            "playerId": 0,
+            "aNodeRef": 6,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 15.0,
+            "aY": 34.0,
+            "bNodeRef": 44,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 18.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 100,
+            "playerId": 1,
+            "aNodeRef": 12,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 142.0,
+            "aY": 34.0,
+            "bNodeRef": 43,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 139.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeBeam",
+            "tick": 100,
+            "playerId": 1,
+            "aNodeRef": 13,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 145.0,
+            "aY": 34.0,
+            "bNodeRef": 46,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 142.0,
+            "bY": 31.0,
+            "materialId": 0
+        },
+        {
+            "type": "placeDevice",
+            "tick": 240,
+            "playerId": 0,
+            "deviceTypeId": 3,
+            "beamRef": 79,
+            "t": 0.5,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 240,
+            "playerId": 1,
+            "deviceTypeId": 3,
+            "beamRef": 82,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "setAim",
+            "tick": 400,
+            "playerId": 0,
+            "deviceRef": 4,
+            "angle": 0.9636908,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 400,
+            "playerId": 0,
+            "deviceRef": 4
+        },
+        {
+            "type": "setAim",
+            "tick": 400,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.685011,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 400,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 440,
+            "playerId": 0,
+            "beamRef": 28
+        },
+        {
+            "type": "setAim",
+            "tick": 620,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.636289,
+            "power": 0.7
+        },
+        {
+            "type": "fire",
+            "tick": 620,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 640,
+            "playerId": 1,
+            "beamRef": 66
+        },
+        {
+            "type": "setAim",
+            "tick": 1000,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.7421784,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 1000,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 1200,
+            "playerId": 0,
+            "deviceRef": 3,
+            "angle": 0.22209835,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 1200,
+            "playerId": 0,
+            "deviceRef": 3
+        },
+        {
+            "type": "setAim",
+            "tick": 1240,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.919512,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 1240,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 1260,
+            "playerId": 0,
+            "beamRef": 27
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 1260,
+            "playerId": 1,
+            "beamRef": 66
+        },
+        {
+            "type": "placeDevice",
+            "tick": 1480,
+            "playerId": 0,
+            "deviceTypeId": 4,
+            "beamRef": 80,
+            "t": 0.5,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 1700,
+            "playerId": 1,
+            "deviceTypeId": 4,
+            "beamRef": 83,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "setAim",
+            "tick": 1780,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.734836,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 1780,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 1820,
+            "playerId": 0,
+            "deviceRef": 3,
+            "angle": 0.24585736,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 1820,
+            "playerId": 0,
+            "deviceRef": 3
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 1840,
+            "playerId": 0,
+            "beamRef": 27
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 1840,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "setAim",
+            "tick": 1920,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.7690203,
+            "power": 0.8
+        },
+        {
+            "type": "fire",
+            "tick": 1920,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 1940,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "setAim",
+            "tick": 2160,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.7346847,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 2160,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeBeam",
+            "tick": 2340,
+            "playerId": 0,
+            "aNodeRef": 17,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 33.0,
+            "aY": 31.0,
+            "bNodeRef": 18,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 36.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "setAim",
+            "tick": 2440,
+            "playerId": 0,
+            "deviceRef": 3,
+            "angle": 0.20153692,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 2440,
+            "playerId": 0,
+            "deviceRef": 3
+        },
+        {
+            "type": "setAim",
+            "tick": 2540,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.9044337,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 2540,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 2560,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "setAim",
+            "tick": 2560,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.7130158,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 2560,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "repairBeam",
+            "tick": 2580,
+            "playerId": 1,
+            "beamRef": 42
+        },
+        {
+            "type": "placeDevice",
+            "tick": 2680,
+            "playerId": 0,
+            "deviceTypeId": 9,
+            "beamRef": 4294967310,
+            "t": 0.72,
+            "sideNegative": true
+        },
+        {
+            "type": "placeBeam",
+            "tick": 3040,
+            "playerId": 0,
+            "aNodeRef": 17,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 33.0,
+            "aY": 31.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 36.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeBeam",
+            "tick": 3040,
+            "playerId": 0,
+            "aNodeRef": 3,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 33.0,
+            "aY": 34.0,
+            "bNodeRef": -1,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 36.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "placeDevice",
+            "tick": 3560,
+            "playerId": 1,
+            "deviceTypeId": 5,
+            "beamRef": 92,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "setAim",
+            "tick": 3640,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.746019,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 3640,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeDevice",
+            "tick": 3780,
+            "playerId": 0,
+            "deviceTypeId": 9,
+            "beamRef": 8589934619,
+            "t": 0.72,
+            "sideNegative": true
+        },
+        {
+            "type": "setAim",
+            "tick": 3800,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.9053576,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 3800,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "placeBeam",
+            "tick": 3940,
+            "playerId": 1,
+            "aNodeRef": 46,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 142.0,
+            "aY": 31.0,
+            "bNodeRef": 47,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 145.0,
+            "bY": 31.0,
+            "materialId": 1
+        },
+        {
+            "type": "repairBeam",
+            "tick": 3960,
+            "playerId": 1,
+            "beamRef": 72
+        },
+        {
+            "type": "repairBeam",
+            "tick": 4000,
+            "playerId": 1,
+            "beamRef": 74
+        },
+        {
+            "type": "repairBeam",
+            "tick": 4040,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "setAim",
+            "tick": 4160,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.7073948,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 4160,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeDevice",
+            "tick": 4240,
+            "playerId": 0,
+            "deviceTypeId": 7,
+            "beamRef": 33,
+            "t": 0.62,
+            "sideNegative": true
+        },
+        {
+            "type": "placeBeam",
+            "tick": 4360,
+            "playerId": 1,
+            "aNodeRef": 11,
+            "aBeamRef": -1,
+            "aBeamT": 0.0,
+            "aX": 124.0,
+            "aY": 34.0,
+            "bNodeRef": 32,
+            "bBeamRef": -1,
+            "bBeamT": 0.0,
+            "bX": 124.0,
+            "bY": 31.0,
+            "materialId": 4
+        },
+        {
+            "type": "setAim",
+            "tick": 4520,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.841503,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 4520,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "setAim",
+            "tick": 4580,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.586105,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 4580,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 4960,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.6128294,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 4960,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeDevice",
+            "tick": 5120,
+            "playerId": 1,
+            "deviceTypeId": 7,
+            "beamRef": 72,
+            "t": 0.62,
+            "sideNegative": false
+        },
+        {
+            "type": "placeDevice",
+            "tick": 5240,
+            "playerId": 0,
+            "deviceTypeId": 10,
+            "beamRef": 3,
+            "t": 0.3,
+            "sideNegative": true
+        },
+        {
+            "type": "repairBeam",
+            "tick": 5260,
+            "playerId": 0,
+            "beamRef": 3
+        },
+        {
+            "type": "setAim",
+            "tick": 5340,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.4730542,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 5340,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 5720,
+            "playerId": 1,
+            "deviceRef": 11,
+            "angle": 2.697234,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 5720,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 5920,
+            "playerId": 0,
+            "deviceRef": 8589934611,
+            "angle": 0.33241668,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 5920,
+            "playerId": 0,
+            "deviceRef": 8589934611
+        },
+        {
+            "type": "setAim",
+            "tick": 5940,
+            "playerId": 1,
+            "deviceRef": 10,
+            "angle": 2.8704612,
+            "power": 0.9
+        },
+        {
+            "type": "fire",
+            "tick": 5940,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 5960,
+            "playerId": 1,
+            "beamRef": 4294967305
+        },
+        {
+            "type": "placeDevice",
+            "tick": 6080,
+            "playerId": 0,
+            "deviceTypeId": 1,
+            "beamRef": 2,
+            "t": 0.5,
+            "sideNegative": true
+        },
+        {
+            "type": "fire",
+            "tick": 6100,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeDevice",
+            "tick": 6280,
+            "playerId": 1,
+            "deviceTypeId": 8,
+            "beamRef": 65,
+            "t": 0.3,
+            "sideNegative": false
+        },
+        {
+            "type": "repairBeam",
+            "tick": 6300,
+            "playerId": 0,
+            "beamRef": 2
+        },
+        {
+            "type": "fire",
+            "tick": 6480,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 6540,
+            "playerId": 0,
+            "deviceRef": 8589934611,
+            "angle": 0.24958487,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 6540,
+            "playerId": 0,
+            "deviceRef": 8589934611
+        },
+        {
+            "type": "setAim",
+            "tick": 6540,
+            "playerId": 1,
+            "deviceRef": 4294967308,
+            "angle": -3.0629466,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 6540,
+            "playerId": 1,
+            "deviceRef": 4294967308
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 6560,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "fire",
+            "tick": 6560,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "toggleDoor",
+            "tick": 6580,
+            "playerId": 1,
+            "beamRef": 4294967305
+        },
+        {
+            "type": "repairBeam",
+            "tick": 6680,
+            "playerId": 1,
+            "beamRef": 67
+        },
+        {
+            "type": "setAim",
+            "tick": 6800,
+            "playerId": 1,
+            "deviceRef": 4294967308,
+            "angle": -3.091895,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 6800,
+            "playerId": 1,
+            "deviceRef": 4294967308
+        },
+        {
+            "type": "fire",
+            "tick": 6860,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "placeDevice",
+            "tick": 7040,
+            "playerId": 1,
+            "deviceTypeId": 2,
+            "beamRef": 71,
+            "t": 0.45,
+            "sideNegative": false
+        },
+        {
+            "type": "setAim",
+            "tick": 7060,
+            "playerId": 1,
+            "deviceRef": 4294967308,
+            "angle": -3.078873,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 7060,
+            "playerId": 1,
+            "deviceRef": 4294967308
+        },
+        {
+            "type": "fire",
+            "tick": 7200,
+            "playerId": 1,
+            "deviceRef": 10
+        },
+        {
+            "type": "fire",
+            "tick": 7280,
+            "playerId": 1,
+            "deviceRef": 11
+        },
+        {
+            "type": "setAim",
+            "tick": 7320,
+            "playerId": 1,
+            "deviceRef": 4294967308,
+            "angle": -3.0808299,
+            "power": 1.0
+        },
+        {
+            "type": "fire",
+            "tick": 7320,
+            "playerId": 1,
+            "deviceRef": 4294967308
+        }
+    ],
+    "ticks": 7441,
+    "checkpoints": [
+        {
+            "tick": 0,
+            "hash": -9045671505581558477
+        },
+        {
+            "tick": 60,
+            "hash": -1082449900919888168
+        },
+        {
+            "tick": 120,
+            "hash": -4210656481645204677
+        },
+        {
+            "tick": 180,
+            "hash": 452155214971011947
+        },
+        {
+            "tick": 240,
+            "hash": 2602364642488649382
+        },
+        {
+            "tick": 300,
+            "hash": -4336973657682429469
+        },
+        {
+            "tick": 360,
+            "hash": -8913873633817520203
+        },
+        {
+            "tick": 420,
+            "hash": 1486164749097630125
+        },
+        {
+            "tick": 480,
+            "hash": 3915717475150631636
+        },
+        {
+            "tick": 540,
+            "hash": 3075071110940535625
+        },
+        {
+            "tick": 600,
+            "hash": 2031633815044537244
+        },
+        {
+            "tick": 660,
+            "hash": -3440502938196986126
+        },
+        {
+            "tick": 720,
+            "hash": -3162915725582443271
+        },
+        {
+            "tick": 780,
+            "hash": -2117402855036499926
+        },
+        {
+            "tick": 840,
+            "hash": -1491289074662010243
+        },
+        {
+            "tick": 900,
+            "hash": 2600530475242315374
+        },
+        {
+            "tick": 960,
+            "hash": -7076739411711793443
+        },
+        {
+            "tick": 1020,
+            "hash": -746778176035246521
+        },
+        {
+            "tick": 1080,
+            "hash": 1566671144557754800
+        },
+        {
+            "tick": 1140,
+            "hash": -8147935321490034292
+        },
+        {
+            "tick": 1200,
+            "hash": -1367608109452941673
+        },
+        {
+            "tick": 1260,
+            "hash": -1924528665187334334
+        },
+        {
+            "tick": 1320,
+            "hash": 6098017981604399013
+        },
+        {
+            "tick": 1380,
+            "hash": -670216109036848090
+        },
+        {
+            "tick": 1440,
+            "hash": 3616400354687247542
+        },
+        {
+            "tick": 1500,
+            "hash": 5807996276837514641
+        },
+        {
+            "tick": 1560,
+            "hash": 6048629481608859342
+        },
+        {
+            "tick": 1620,
+            "hash": -281888846456792810
+        },
+        {
+            "tick": 1680,
+            "hash": -7224765663899672182
+        },
+        {
+            "tick": 1740,
+            "hash": 6397174985467673871
+        },
+        {
+            "tick": 1800,
+            "hash": 1691044786682455949
+        },
+        {
+            "tick": 1860,
+            "hash": -1003118390888695072
+        },
+        {
+            "tick": 1920,
+            "hash": -3739921675026795406
+        },
+        {
+            "tick": 1980,
+            "hash": 3398397964344920631
+        },
+        {
+            "tick": 2040,
+            "hash": 2383037825586376377
+        },
+        {
+            "tick": 2100,
+            "hash": 7003709860447342871
+        },
+        {
+            "tick": 2160,
+            "hash": 983599072007374409
+        },
+        {
+            "tick": 2220,
+            "hash": -9072757069652986598
+        },
+        {
+            "tick": 2280,
+            "hash": -5738261489324105731
+        },
+        {
+            "tick": 2340,
+            "hash": 6164472022047806037
+        },
+        {
+            "tick": 2400,
+            "hash": 4183117506965956539
+        },
+        {
+            "tick": 2460,
+            "hash": 3814986765760616257
+        },
+        {
+            "tick": 2520,
+            "hash": -3442295496053824241
+        },
+        {
+            "tick": 2580,
+            "hash": -5731506602097126236
+        },
+        {
+            "tick": 2640,
+            "hash": 3431208343225754195
+        },
+        {
+            "tick": 2700,
+            "hash": 2701919722914039757
+        },
+        {
+            "tick": 2760,
+            "hash": 2594832565678457910
+        },
+        {
+            "tick": 2820,
+            "hash": -444982043476007065
+        },
+        {
+            "tick": 2880,
+            "hash": 4936053559815424815
+        },
+        {
+            "tick": 2940,
+            "hash": 6988757788149738791
+        },
+        {
+            "tick": 3000,
+            "hash": 4666717800881093093
+        },
+        {
+            "tick": 3060,
+            "hash": 7702686140504523790
+        },
+        {
+            "tick": 3120,
+            "hash": -3135341639653695414
+        },
+        {
+            "tick": 3180,
+            "hash": -7924517161052021906
+        },
+        {
+            "tick": 3240,
+            "hash": 5382811094892520709
+        },
+        {
+            "tick": 3300,
+            "hash": -3985734047843734201
+        },
+        {
+            "tick": 3360,
+            "hash": 4551298192477108502
+        },
+        {
+            "tick": 3420,
+            "hash": 93043692771154929
+        },
+        {
+            "tick": 3480,
+            "hash": 3849002835749593530
+        },
+        {
+            "tick": 3540,
+            "hash": -5319117347985851308
+        },
+        {
+            "tick": 3600,
+            "hash": -3738969468860796337
+        },
+        {
+            "tick": 3660,
+            "hash": 3374458267792138662
+        },
+        {
+            "tick": 3720,
+            "hash": -5144963250375600650
+        },
+        {
+            "tick": 3780,
+            "hash": 3657761248431348635
+        },
+        {
+            "tick": 3840,
+            "hash": -6003350116863683187
+        },
+        {
+            "tick": 3900,
+            "hash": -2530555257540788308
+        },
+        {
+            "tick": 3960,
+            "hash": 970785445211101035
+        },
+        {
+            "tick": 4020,
+            "hash": 3120586268423340121
+        },
+        {
+            "tick": 4080,
+            "hash": -6025319213856932040
+        },
+        {
+            "tick": 4140,
+            "hash": 6940000673078911400
+        },
+        {
+            "tick": 4200,
+            "hash": -641921904286471528
+        },
+        {
+            "tick": 4260,
+            "hash": 5550631436814454866
+        },
+        {
+            "tick": 4320,
+            "hash": 2640736876000711546
+        },
+        {
+            "tick": 4380,
+            "hash": -2145202663720435033
+        },
+        {
+            "tick": 4440,
+            "hash": 953883368379500648
+        },
+        {
+            "tick": 4500,
+            "hash": -1471313900099772777
+        },
+        {
+            "tick": 4560,
+            "hash": 5892859101104094774
+        },
+        {
+            "tick": 4620,
+            "hash": -3852935999123005916
+        },
+        {
+            "tick": 4680,
+            "hash": 2514499928958183846
+        },
+        {
+            "tick": 4740,
+            "hash": 3195964266786660166
+        },
+        {
+            "tick": 4800,
+            "hash": -3904949820680651198
+        },
+        {
+            "tick": 4860,
+            "hash": 5283281037300735247
+        },
+        {
+            "tick": 4920,
+            "hash": 6114100575842066909
+        },
+        {
+            "tick": 4980,
+            "hash": -1752499797431652507
+        },
+        {
+            "tick": 5040,
+            "hash": -9161238036086969572
+        },
+        {
+            "tick": 5100,
+            "hash": -725631410146507867
+        },
+        {
+            "tick": 5160,
+            "hash": -7110975743750047127
+        },
+        {
+            "tick": 5220,
+            "hash": -2195756658792300361
+        },
+        {
+            "tick": 5280,
+            "hash": 4845407241308350383
+        },
+        {
+            "tick": 5340,
+            "hash": 7833038682983843184
+        },
+        {
+            "tick": 5400,
+            "hash": 5380880381155621648
+        },
+        {
+            "tick": 5460,
+            "hash": 7126751957686315510
+        },
+        {
+            "tick": 5520,
+            "hash": 4281483360718131756
+        },
+        {
+            "tick": 5580,
+            "hash": -8893273652483436543
+        },
+        {
+            "tick": 5640,
+            "hash": -4926125714407404276
+        },
+        {
+            "tick": 5700,
+            "hash": 8150604285260697199
+        },
+        {
+            "tick": 5760,
+            "hash": 4593882276439810429
+        },
+        {
+            "tick": 5820,
+            "hash": -2152436347140065905
+        },
+        {
+            "tick": 5880,
+            "hash": 9106410578078247205
+        },
+        {
+            "tick": 5940,
+            "hash": -8010335720197999011
+        },
+        {
+            "tick": 6000,
+            "hash": 6595850606498359379
+        },
+        {
+            "tick": 6060,
+            "hash": 4196364438011698747
+        },
+        {
+            "tick": 6120,
+            "hash": -4053791562553807896
+        },
+        {
+            "tick": 6180,
+            "hash": 8005215236730664072
+        },
+        {
+            "tick": 6240,
+            "hash": -2214362020493822637
+        },
+        {
+            "tick": 6300,
+            "hash": 8027705848387310003
+        },
+        {
+            "tick": 6360,
+            "hash": 1416910518202943725
+        },
+        {
+            "tick": 6420,
+            "hash": -6506446865899986328
+        },
+        {
+            "tick": 6480,
+            "hash": -4331279528958463841
+        },
+        {
+            "tick": 6540,
+            "hash": -3682602536818787805
+        },
+        {
+            "tick": 6600,
+            "hash": -2417391714054555361
+        },
+        {
+            "tick": 6660,
+            "hash": 595378704775303223
+        },
+        {
+            "tick": 6720,
+            "hash": 1251997895683289004
+        },
+        {
+            "tick": 6780,
+            "hash": 7938859000246051431
+        },
+        {
+            "tick": 6840,
+            "hash": 5949496961790208466
+        },
+        {
+            "tick": 6900,
+            "hash": 5600203206336640634
+        },
+        {
+            "tick": 6960,
+            "hash": 8091649408358948871
+        },
+        {
+            "tick": 7020,
+            "hash": 7692631224709538172
+        },
+        {
+            "tick": 7080,
+            "hash": -732694753722013880
+        },
+        {
+            "tick": 7140,
+            "hash": 8201636259207943724
+        },
+        {
+            "tick": 7200,
+            "hash": -2552467718720255079
+        },
+        {
+            "tick": 7260,
+            "hash": -8601628355963932754
+        },
+        {
+            "tick": 7320,
+            "hash": -3683937766157586015
+        },
+        {
+            "tick": 7380,
+            "hash": -4161921337822458842
+        },
+        {
+            "tick": 7440,
+            "hash": -6384464345603081675
+        },
+        {
+            "tick": 7441,
+            "hash": 3312597898106480363
+        }
+    ]
+}

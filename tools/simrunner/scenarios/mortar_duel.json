@@ -1,0 +1,11 @@
+{
+  "name": "mortar_duel",
+  "description": "Beide Spieler feuern abwechselnd Moerser auf die gegnerische Festung (Nachladezeit 6 s, Takt 7 s).",
+  "map": "schlucht",
+  "seed": 1,
+  "ticks": 3600,
+  "commands": [
+    { "tick": 60,  "every": 420, "count": 8, "action": "shoot", "player": 0, "device": "mortar", "angleDeg": 35,  "power": 0.75 },
+    { "tick": 270, "every": 420, "count": 8, "action": "shoot", "player": 1, "device": "mortar", "angleDeg": 145, "power": 0.75 }
+  ]
+}

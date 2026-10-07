@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Stil-Bibel §2; Code nutzt de.bollwerk.renderapi.Palette, XML nur das Nötigste -->
+    <color name="dark">#FF141A21</color>
+    <color name="ic_launcher_background">#FF141A21</color>
+</resources>

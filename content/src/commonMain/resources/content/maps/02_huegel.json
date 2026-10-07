@@ -1,0 +1,60 @@
+{
+  "maps": [
+    {
+      "id": "huegel",
+      "nameKey": "map_huegel",
+      "width": 160,
+      "height": 64,
+      "terrain": [
+        { "x": -40, "y": 34 },
+        { "x": 44, "y": 34 },
+        { "x": 52, "y": 35.2 },
+        { "x": 60, "y": 38.5 },
+        { "x": 70, "y": 41.3 },
+        { "x": 80, "y": 42 },
+        { "x": 90, "y": 41.3 },
+        { "x": 100, "y": 38.5 },
+        { "x": 108, "y": 35.2 },
+        { "x": 116, "y": 34 },
+        { "x": 200, "y": 34 }
+      ],
+      "plateaus": [
+        { "x0": 0, "x1": 44, "y": 34 },
+        { "x0": 116, "x1": 160, "y": 34 }
+      ],
+      "ores": [
+        { "x": 25.5, "owner": 0 },
+        { "x": 31.5, "owner": 0 },
+        { "x": 134.5, "owner": 1 },
+        { "x": 128.5, "owner": 1 }
+      ],
+      "foundations": [
+        { "owner": 0, "x": 24, "y": 34 },
+        { "owner": 0, "x": 27, "y": 34 },
+        { "owner": 0, "x": 30, "y": 34 },
+        { "owner": 0, "x": 33, "y": 34 },
+        { "owner": 0, "x": 36, "y": 34 },
+        { "owner": 0, "x": 18, "y": 34 },
+        { "owner": 0, "x": 15, "y": 34 },
+        { "owner": 1, "x": 136, "y": 34 },
+        { "owner": 1, "x": 133, "y": 34 },
+        { "owner": 1, "x": 130, "y": 34 },
+        { "owner": 1, "x": 127, "y": 34 },
+        { "owner": 1, "x": 124, "y": 34 },
+        { "owner": 1, "x": 142, "y": 34 },
+        { "owner": 1, "x": 145, "y": 34 }
+      ],
+      "buildZones": [
+        { "owner": 0, "x0": 0, "x1": 59 },
+        { "owner": 1, "x0": 101, "x1": 160 }
+      ],
+      "startForts": [
+        { "owner": 0, "blueprint": "fort_standard", "originX": 24 },
+        { "owner": 1, "blueprint": "fort_standard", "originX": 136, "mirror": true }
+      ],
+      "baseY": [34, 34],
+      "windMin": -8,
+      "windMax": 8
+    }
+  ]
+}

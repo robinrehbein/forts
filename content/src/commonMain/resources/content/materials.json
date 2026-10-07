@@ -1,0 +1,78 @@
+{
+  "materials": [
+    {
+      "id": "wood",
+      "nameKey": "material_wood",
+      "costPerM": 4,
+      "hp": 100,
+      "density": 15,
+      "stiffness": 6000000,
+      "tensionLimit": 0.05,
+      "compressionLimit": 0.035,
+      "damageFactor": 1,
+      "thickness": 0.32,
+      "flammable": true,
+      "damping": 0.1
+    },
+    {
+      "id": "metal",
+      "nameKey": "material_metal",
+      "costPerM": 10,
+      "hp": 260,
+      "density": 50,
+      "stiffness": 60000000,
+      "tensionLimit": 0.02,
+      "compressionLimit": 0.016,
+      "damageFactor": 1,
+      "thickness": 0.26,
+      "flammable": false,
+      "damping": 0.12
+    },
+    {
+      "id": "armour",
+      "nameKey": "material_armour",
+      "costPerM": 18,
+      "hp": 520,
+      "density": 90,
+      "stiffness": 80000000,
+      "tensionLimit": 0.02,
+      "compressionLimit": 0.016,
+      "damageFactor": 0.3,
+      "thickness": 0.42,
+      "flammable": false,
+      "damping": 0.12,
+      "requiresTech": "upgrade_center"
+    },
+    {
+      "id": "rope",
+      "nameKey": "material_rope",
+      "costPerM": 2,
+      "hp": 60,
+      "density": 4,
+      "stiffness": 3000000,
+      "tensionLimit": 0.08,
+      "compressionLimit": 0,
+      "damageFactor": 1,
+      "thickness": 0.08,
+      "flammable": true,
+      "damping": 0.05,
+      "tensionOnly": true,
+      "restLengthFactor": 1.04
+    },
+    {
+      "id": "door",
+      "nameKey": "material_door",
+      "costPerM": 14,
+      "hp": 160,
+      "density": 45,
+      "stiffness": 30000000,
+      "tensionLimit": 0.03,
+      "compressionLimit": 0.022,
+      "damageFactor": 0.8,
+      "thickness": 0.4,
+      "flammable": false,
+      "damping": 0.12,
+      "isDoor": true
+    }
+  ]
+}
