@@ -31,7 +31,7 @@ class AimToolTest {
         val ctx get() = rig.ctx()
         val ref get() = rig.dref(mortar)
         /** Trefferzentrum des Mörsers (auf der Balkenoberseite). */
-        val cx: Float get() = 24.5f
+        val cx: Float get() = 15.5f
         val cy: Float get() = 33.29f
     }
 
@@ -39,7 +39,8 @@ class AimToolTest {
         rig: ToolRig = ToolRig(), settings: ToolSettings = ToolSettings(), select: Boolean = true,
         aim: Float = 52f * FloatMath.DEG_TO_RAD, power: Float = 0.78f,
     ): Setup {
-        val m = rig.addDevice(MORTAR, rig.ground01, 0.5f, true, 0, aim, power)
+        // freistehende Plattform links vor der Festung: die Bahn ist frei (FX1: im Fort-Dreieck träfe sie das eigene Dach)
+        val m = rig.addDevice(MORTAR, battery(rig), 0.5f, true, 0, aim, power)
         val c = ToolController(settings)
         c.enterAimMode()
         val s = Setup(rig, m, c)
@@ -49,6 +50,9 @@ class AimToolTest {
         }
         return s
     }
+
+    /** Verankerter Holzbalken x 14..17 auf dem Boden (Mitte 15,5), frei vor der Festung. */
+    private fun battery(rig: ToolRig): Int = rig.addBeam(rig.addAnchor(14f, 34f), rig.addAnchor(17f, 34f))
 
     /** Zugvektor (dx, dy in Welt-Metern, y nach unten) von einem Startpunkt irgendwo im Gelände. */
     private fun Setup.dragBy(dx: Float, dy: Float, ctx: ToolContext = this.ctx): ToolResult =
@@ -254,7 +258,7 @@ class AimToolTest {
             geo[DeviceGeometry.MUZZLE_X], geo[DeviceGeometry.MUZZLE_Y], s.devices.aimAngle[deviceSlot], s.devices.power[deviceSlot],
             weapon.muzzleSpeed, s.wind, s.config, buf, 600, s.terrain, s.map, gravityScale = weapon.gravityScale,
         )
-        return Trajectory(buf.copyOf(n * 2), n)
+        return Trajectory(buf.copyOf(n * 2), n, TrajectoryOutcome.TERRAIN)
     }
 
     @Test
@@ -294,7 +298,7 @@ class AimToolTest {
             geo[DeviceGeometry.MUZZLE_X], geo[DeviceGeometry.MUZZLE_Y], st.angle, st.power, w, 2f, s.rig.state.config, buf, 600,
             s.rig.state.terrain, s.rig.state.map,
         )
-        assertEquals(Trajectory(buf.copyOf(n * 2), n), st.trajectory)
+        assertEquals(Trajectory(buf.copyOf(n * 2), n, TrajectoryOutcome.TERRAIN), st.trajectory)
         assertEquals(st.trajectory, s.ctrl.overlay.trajectory)
     }
 
@@ -358,15 +362,16 @@ class AimToolTest {
     @Test
     fun windDriftIsMeasuredInShotDirectionForPlayerTwo() {
         val rig = ToolRig()
-        val a = rig.addAnchor(95f, 34f, 1)
-        val b = rig.addAnchor(98f, 34f, 1)
+        // freistehend rechts neben der Festung von Spieler 2 (im Fort-Dreieck träfe der Schuss das eigene Dach)
+        val a = rig.addAnchor(103f, 34f, 1)
+        val b = rig.addAnchor(106f, 34f, 1)
         val beam = rig.addBeam(a, b, owner = 1)
         rig.addDevice(MORTAR, beam, 0.5f, true, 1, 128f * deg, 0.78f)
         val ctrl = ToolController()
         ctrl.enterAimMode()
         val ctx = rig.ctx(player = 1)
-        ctrl.pointer(PointerPhase.DOWN, 96.5f, 33.29f, ctx)
-        ctrl.pointer(PointerPhase.UP, 96.5f, 33.29f, ctx)
+        ctrl.pointer(PointerPhase.DOWN, 104.5f, 33.29f, ctx)
+        ctrl.pointer(PointerPhase.UP, 104.5f, 33.29f, ctx)
         rig.state.wind = 4f // nach rechts = Gegenwind für einen Schuss nach links
         ctrl.refresh(ctx)
         assertTrue(ctrl.overlay.aim!!.windDriftM < 0f)
@@ -379,13 +384,21 @@ class AimToolTest {
     fun hitscanWeaponsPreviewAStraightLineOverTheirRange() {
         val base = RuleTables.tables
         val hit = base.copy(weapons = base.weapons.mapIndexed { i, w -> if (i == RuleTables.W_MORTAR) w.copy(mode = WeaponMode.HITSCAN, maxRange = 60f) else w })
-        val s = setup(ToolRig(tables = hit), aim = 0f)
+        val s = setup(ToolRig(tables = hit), aim = 30f * deg)
         val t = s.ctrl.overlay.trajectory!!
         assertEquals(2, t.count)
-        assertEquals(60f, abs(t.x(1) - t.x(0)), 1e-2f)
-        assertEquals(t.y(0), t.y(1), 1e-3f)
+        assertEquals(60f * cos(30f * deg), abs(t.x(1) - t.x(0)), 1e-2f)
+        assertEquals(60f * sin(30f * deg), t.y(0) - t.y(1), 1e-2f)
         assertEquals(0f, s.ctrl.overlay.aim!!.apexHeightM)
         assertFalse(s.ctrl.overlay.aim!!.hasImpact)
+        assertEquals(TrajectoryOutcome.CLEAR, s.ctrl.overlay.aim!!.outcome)
+        // flach nach rechts: der Strahl endet an der eigenen Festung (Dreieck ab x = 20)
+        s.rig.state.devices.aimAngle[s.mortar] = 0f
+        s.ctrl.refresh(s.ctx)
+        val blocked = s.ctrl.overlay.trajectory!!
+        assertEquals(TrajectoryOutcome.BLOCKED_OWN, blocked.outcome)
+        assertTrue(blocked.x(1) > 20f && blocked.x(1) < 23f, "x=${blocked.x(1)}")
+        assertTrue(s.ctrl.overlay.aim!!.hasImpact)
     }
 
     // ---- Feuern ----
@@ -549,12 +562,12 @@ class AimToolTest {
     @Test
     fun toolContractWorksStandalone() {
         val rig = ToolRig()
-        val m = rig.addDevice(MORTAR, rig.ground01, 0.5f, true, 0, 52f * deg, 0.78f)
+        val m = rig.addDevice(MORTAR, battery(rig), 0.5f, true, 0, 52f * deg, 0.78f)
         val tool = DefaultAimTool()
         val ctx = rig.ctx()
-        tool.onDown(24.5f, 33.29f, ctx)
+        tool.onDown(15.5f, 33.29f, ctx)
         assertEquals(AimToolState.WeaponSelected(rig.dref(m)), tool.state)
-        tool.onUp(24.5f, 33.29f, ctx)
+        tool.onUp(15.5f, 33.29f, ctx)
         tool.onDown(10f, 20f, ctx)
         tool.onMove(13f, 16f, ctx)
         val aiming = assertIs<AimToolState.Aiming>(tool.state)
@@ -608,5 +621,36 @@ class AimToolTest {
         s.rig.state.nodes.x[s.rig.n23] += 0.02f
         s.ctrl.refresh(s.ctx)
         assertNotSame(before, s.ctrl.aim.preview)
+    }
+
+    // ---- FX1: Eigentreffer ----
+
+    @Test
+    fun aShotIntoTheOwnFortIsFlaggedInTheOverlayWithReasonAndImpactAtTheHit() {
+        val rig = ToolRig()
+        // Mörser im Fort-Dreieck, flach nach rechts: die Bahn trifft die Schräge n26–Spitze (steil ragt das Rohr hindurch)
+        val m = rig.addDevice(MORTAR, rig.ground01, 0.5f, true, 0, 5f * deg, 0.78f)
+        val ctrl = ToolController()
+        ctrl.enterAimMode()
+        val ctx = rig.ctx()
+        ctrl.pointer(PointerPhase.DOWN, 24.5f, 33.29f, ctx)
+        ctrl.pointer(PointerPhase.UP, 24.5f, 33.29f, ctx)
+        assertEquals(rig.dref(m), ctrl.overlay.selectedDeviceRef)
+        val info = ctrl.overlay.aim!!
+        assertEquals(TrajectoryOutcome.BLOCKED_OWN, info.outcome)
+        assertTrue(info.blockedOwn)
+        assertEquals(ShotSweep.REASON_BLOCKED_OWN, info.blockedReasonKey)
+        assertTrue(info.hasImpact)
+        val t = ctrl.overlay.trajectory!!
+        assertTrue(t.blockedOwn)
+        // Bahn endet an der Schräge (x 23..26, y 31..34), Einschlag-Marke dort
+        assertEquals(t.x(t.count - 1), ctrl.overlay.impactX)
+        assertEquals(t.y(t.count - 1), ctrl.overlay.impactY)
+        assertTrue(ctrl.overlay.impactX in 23f..26.5f && ctrl.overlay.impactY in 30.5f..34f, "${ctrl.overlay.impactX}, ${ctrl.overlay.impactY}")
+        assertTrue(t.count < 6)
+        // dieselbe Waffe auf einer freien Plattform: kein Grund
+        val free = setup()
+        assertEquals(TrajectoryOutcome.TERRAIN, free.ctrl.overlay.aim!!.outcome)
+        assertNull(free.ctrl.overlay.aim!!.blockedReasonKey)
     }
 }

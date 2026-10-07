@@ -14,6 +14,8 @@ import de.bollwerk.app.match.MatchResult
 import de.bollwerk.app.nav.Navigator
 import de.bollwerk.app.nav.Screen
 import de.bollwerk.app.settings.AppSettings
+import de.bollwerk.app.settings.GestureTip
+import de.bollwerk.app.settings.GestureTips
 import de.bollwerk.app.tutorial.TutorialCoach
 import de.bollwerk.app.tutorial.TutorialDriver
 import de.bollwerk.app.tutorial.TutorialEffects
@@ -22,7 +24,9 @@ import de.bollwerk.app.ui.game.hud.HudActions
 import de.bollwerk.engine.command.RejectReason
 import de.bollwerk.engine.sim.SimConfig
 import de.bollwerk.engine.sim.TurnMode
+import de.bollwerk.app.tutorial.TutorialStatus
 import de.bollwerk.engine.tools.TapAction
+import de.bollwerk.engine.tools.ToolMode
 import de.bollwerk.engine.tools.ToolSelection
 import de.bollwerk.engine.view.HudModel
 import kotlinx.coroutines.CoroutineDispatcher
@@ -34,6 +38,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -127,6 +132,12 @@ class GameViewModel(
     private val decimalSeparator: Char = ',',
     private val entryId: Long = navigator.current.id,
     private val tutorialStore: TutorialStore? = null,
+    /** Bereits gezeigte Gesten-Hinweise (DataStore); ohne Quelle erscheinen keine Hinweise. */
+    gestureTips: Flow<GestureTips> = emptyFlow(),
+    /** Merkt einen gezeigten Hinweis dauerhaft (DataStore). */
+    private val onTipSeen: (suspend (GestureTip) -> Unit)? = null,
+    private val tipDelayMillis: Long = TIP_DELAY_MS,
+    private val tipMillis: Long = TIP_MS,
 ) : ViewModel(), HudActions {
     private val _state = MutableStateFlow(GameUiState(config, loading = runtimeFactory != null))
     val state: StateFlow<GameUiState> = _state.asStateFlow()
@@ -144,6 +155,17 @@ class GameViewModel(
     val tutorial: StateFlow<TutorialUiModel?> = _tutorial.asStateFlow()
 
     private var coach: TutorialCoach? = null
+
+    private val _tip = MutableStateFlow<GestureTip?>(null)
+    /** Aktueller einmaliger Gesten-Hinweis (nicht blockierender Chip), `null` = keiner. */
+    val tip: StateFlow<GestureTip?> = _tip.asStateFlow()
+
+    private var storedTips = GestureTips()
+    private var tipsLoaded = false
+    private var tipJob: Job? = null
+    /** Restzeit bis der nächste Hinweis erscheint bzw. bis er sich ausblendet; läuft nur, solange der Chip sichtbar sein kann. */
+    private var tipWaitLeft = tipDelayMillis
+    private var tipShowLeft = tipMillis
 
     private val _toast = MutableStateFlow<GameToast?>(null)
     val toast: StateFlow<GameToast?> = _toast.asStateFlow()
@@ -164,6 +186,21 @@ class GameViewModel(
     private var lastHud: HudModel? = null
 
     init {
+        viewModelScope.launch {
+            gestureTips.collect {
+                val merged = GestureTips(storedTips.seenMask or it.seenMask)
+                val changed = merged != storedTips || !tipsLoaded
+                storedTips = merged
+                tipsLoaded = true
+                if (changed) syncTip()
+            }
+        }
+        // Der Hinweis-Countdown läuft nur, solange der Chip wirklich zu sehen sein kann (siehe tipCanRun)
+        viewModelScope.launch {
+            combine(_runtime, _state, _hud, _tutorial, combine(_simRunning, _toast) { r, t -> r to t }) { _, _, _, _, _ -> tipCanRun() }
+                .distinctUntilChanged()
+                .collect { syncTip() }
+        }
         viewModelScope.launch {
             settings.collect { s ->
                 _settings.value = s
@@ -245,6 +282,71 @@ class GameViewModel(
         _tutorial.value = null
         _runtime.value?.stop()
         _runtime.value = null
+        resetTip()
+    }
+
+    // =============================================================================================
+    // Einmalige Gesten-Hinweise
+    // =============================================================================================
+
+    /**
+     * Darf der Hinweis-Countdown laufen? Nur wenn der Chip wirklich zu sehen ist: normale Partie (im Tutorial-Gefecht erst nach
+     * Überspringen/Schließen), App im Vordergrund, kein Overlay (Pause, Einstellungen, Hotseat-Übergabe), kein Techbaum, kein
+     * Kontextmenü, kein Toast, nicht im Zielmodus. Sonst steht die Restzeit still und der Hinweis zählt nicht als gesehen.
+     */
+    private fun tipCanRun(): Boolean {
+        val rt = _runtime.value ?: return false
+        val s = _state.value
+        val tutorialActive = rt.session.tutorial != null &&
+            _tutorial.value?.state?.status.let { it == null || it == TutorialStatus.RUNNING || it == TutorialStatus.COMPLETED }
+        val hud = _hud.value
+        return tipsLoaded && !finished && !tutorialActive && _simRunning.value && !backgrounded && !s.loading &&
+            s.overlay == GameOverlay.None && !s.techTreeOpen && hud.contextMenu == null && hud.mode != ToolMode.AIM && _toast.value == null
+    }
+
+    /** Hinweis-Aufgabe neu aufsetzen: läuft nur, wenn der Countdown laufen darf und noch ein Hinweis aussteht. */
+    private fun syncTip() {
+        tipJob?.cancel()
+        tipJob = null
+        if (!tipCanRun()) return
+        val next = _tip.value ?: storedTips.next() ?: return
+        tipJob = viewModelScope.launch {
+            if (_tip.value == null) {
+                tipWaitLeft = countDown(tipWaitLeft)
+                _tip.value = next
+            }
+            tipShowLeft = countDown(tipShowLeft)
+            dismissTip()
+        }
+    }
+
+    /** Zählt [left] in kurzen Schritten herunter und gibt den Rest zurück (bei Abbruch bleibt der Rest in der Variablen erhalten). */
+    private suspend fun countDown(left: Long): Long {
+        var rest = left
+        while (rest > 0) {
+            val step = minOf(TIP_TICK_MS, rest)
+            delay(step)
+            rest -= step
+            if (_tip.value == null) tipWaitLeft = rest else tipShowLeft = rest
+        }
+        return 0
+    }
+
+    private fun resetTip() {
+        tipJob?.cancel()
+        tipJob = null
+        _tip.value = null
+        tipWaitLeft = tipDelayMillis
+        tipShowLeft = tipMillis
+    }
+
+    /** Hinweis weggetippt oder abgelaufen: dauerhaft als gesehen merken, der nächste folgt nach einer Pause. */
+    fun dismissTip() {
+        val t = _tip.value ?: return
+        resetTip()
+        storedTips = storedTips.markSeen(t)
+        viewModelScope.launch { onTipSeen?.invoke(t) }
+        syncTip()
     }
 
     // =============================================================================================
@@ -495,5 +597,8 @@ class GameViewModel(
         /** Nach dem Sieg/Niederlage-Moment noch kurz die Explosion zeigen. */
         const val END_DELAY_MS = 1800L
         const val TOAST_MS = 2200L
+        const val TIP_TICK_MS = 100L
+        const val TIP_DELAY_MS = 2500L
+        const val TIP_MS = 12_000L
     }
 }

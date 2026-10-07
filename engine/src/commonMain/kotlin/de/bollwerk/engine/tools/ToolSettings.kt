@@ -73,7 +73,10 @@ object ToolConst {
     /** Zuglänge (relativ zu `pickRadiusM`) hinter der Totzone, ab der die volle Kraft erreicht ist (Prototyp 140-260 px). */
     const val AIM_FULL_POWER_FACTOR: Float = 7f
 
-    /** Höchstzahl der Flugbahn-Punkte (ein Punkt je Tick, 10 s). */
+    /**
+     * Anfangsgröße des Flugbahn-Puffers der Zielvorschau (ein Punkt je Tick, 10 s). Keine Obergrenze mehr: Vorschau und
+     * Kollisionsprüfung reichen über die ganze Lebensdauer des Geschosses (`ShotSweep.lifetimeTicks`, FX1-Review).
+     */
     const val TRAJECTORY_MAX_POINTS: Int = 600
 
     /** Der letzte Bahnpunkt gilt als Geländetreffer, wenn er höchstens so weit (m) über der Geländelinie liegt. */

@@ -3,6 +3,7 @@ package de.bollwerk.app.settings
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.bollwerk.app.match.AiLevel
 import de.bollwerk.app.match.MapOption
@@ -51,6 +52,22 @@ data class TutorialProgress(
     fun afterOffer(): TutorialProgress = copy(offered = true)
 }
 
+/** Einmalige Gesten-Hinweise (nicht blockierende Chips); Reihenfolge = Anzeigereihenfolge. */
+enum class GestureTip { PINCH_ZOOM, DOUBLE_TAP, LONG_PRESS }
+
+/**
+ * Welche Gesten-Hinweise schon gezeigt (und damit erledigt) sind, als Bitmaske (DataStore). Ein Hinweis gilt als gesehen,
+ * sobald er weggetippt wurde oder von selbst verschwunden ist; er erscheint nie wieder.
+ */
+data class GestureTips(val seenMask: Int = 0) {
+    fun isSeen(tip: GestureTip): Boolean = seenMask and (1 shl tip.ordinal) != 0
+
+    /** Der nächste noch nicht gesehene Hinweis, `null` wenn alle erledigt sind. */
+    fun next(): GestureTip? = GestureTip.entries.firstOrNull { !isSeen(it) }
+
+    fun markSeen(tip: GestureTip): GestureTips = copy(seenMask = seenMask or (1 shl tip.ordinal))
+}
+
 /** DataStore-Schlüssel und die reine Abbildung Preferences ⇄ Datenklassen (ohne Android testbar). */
 object PrefKeys {
     val SOUND = floatPreferencesKey("sound_volume")
@@ -62,6 +79,8 @@ object PrefKeys {
 
     val TUTORIAL_OFFERED = booleanPreferencesKey("tutorial_offered")
     val TUTORIAL_COMPLETED = booleanPreferencesKey("tutorial_completed")
+
+    val GESTURE_TIPS_SEEN = intPreferencesKey("gesture_tips_seen")
 
     val SETUP_MAP = stringPreferencesKey("setup_map")
     val SETUP_AI = stringPreferencesKey("setup_ai")
@@ -121,4 +140,13 @@ fun Preferences.toTutorialProgress(): TutorialProgress {
 fun androidx.datastore.preferences.core.MutablePreferences.write(progress: TutorialProgress) {
     this[PrefKeys.TUTORIAL_OFFERED] = progress.offered || progress.completed
     this[PrefKeys.TUTORIAL_COMPLETED] = progress.completed
+}
+
+fun Preferences.toGestureTips(): GestureTips {
+    val all = (1 shl GestureTip.entries.size) - 1
+    return GestureTips((this[PrefKeys.GESTURE_TIPS_SEEN] ?: 0) and all)
+}
+
+fun androidx.datastore.preferences.core.MutablePreferences.write(tips: GestureTips) {
+    this[PrefKeys.GESTURE_TIPS_SEEN] = tips.seenMask
 }

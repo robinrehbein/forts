@@ -92,8 +92,15 @@ data class GhostDevice(
 /**
  * Flugbahn-Vorschau: [count] Punkte als (x, y)-Paare in [points] (Welt-Meter). Gleichheit nach Inhalt,
  * damit Compose-State-Vergleiche funktionieren.
+ *
+ * [outcome] (FX1, additiv): Was die Bahn als Erstes trifft ([ShotSweep], gleiche Kollision wie die Sim). Bei
+ * [TrajectoryOutcome.BLOCKED_OWN] endet die Bahn am Treffer in der eigenen Festung; der Renderer zeichnet sie rot mit
+ * Warnmarke am Einschlag.
  */
-class Trajectory(val points: FloatArray, val count: Int) {
+class Trajectory(val points: FloatArray, val count: Int, val outcome: TrajectoryOutcome = TrajectoryOutcome.CLEAR) {
+    /** Der erste Treffer ist die eigene Festung (Stil-Bibel: rot = ungültig). */
+    val blockedOwn: Boolean get() = outcome == TrajectoryOutcome.BLOCKED_OWN
+
     init { require(count * 2 <= points.size) { "count exceeds points" } }
 
     fun x(i: Int): Float = points[i * 2]
@@ -101,13 +108,13 @@ class Trajectory(val points: FloatArray, val count: Int) {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is Trajectory || other.count != count) return false
+        if (other !is Trajectory || other.count != count || other.outcome != outcome) return false
         for (i in 0 until count * 2) if (points[i].toRawBits() != other.points[i].toRawBits()) return false
         return true
     }
 
     override fun hashCode(): Int {
-        var h = count
+        var h = count * 31 + outcome.ordinal
         for (i in 0 until count * 2) h = h * 31 + points[i].toRawBits()
         return h
     }

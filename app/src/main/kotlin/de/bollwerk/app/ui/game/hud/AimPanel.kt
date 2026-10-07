@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -130,20 +131,35 @@ private fun WeaponCard(aim: AimPanelState, onCycle: () -> Unit, modifier: Modifi
                 sub, style = HudType.Small.copy(fontSize = 13.sp, lineHeight = 15.sp), color = HudColors.Label, minFontSize = 12.sp,
                 fallbacks = listOfNotNull(kind?.takeIf { it != sub }),
             )
-            // Sichtbarer Hinweis, dass Tippen die Waffe wechselt (Spielplatz: „WAFFE 1 / 3 · ANTIPPEN WECHSELT")
+            // Sichtbare Wechsel-Anzeige: „‹ 1/3 · WAFFE WECHSELN ›" (Tippen auf die Karte schaltet zur nächsten Waffe)
             if (aim.weaponCount > 1 && aim.weaponNumber > 0) {
-                FitText(
-                    stringResource(R.string.aim_weapon_cycle, aim.weaponNumber, aim.weaponCount).uppercase(),
-                    style = HudType.ChipLabel.copy(letterSpacing = 0.1.em, lineHeight = 12.sp), color = AimBlue,
-                    // Schmale Leiste: kürzere Fassungen statt „…"
-                    fallbacks = listOf(
-                        stringResource(R.string.aim_weapon_cycle_short, aim.weaponNumber, aim.weaponCount).uppercase(),
-                        stringResource(R.string.aim_weapon_count, aim.weaponNumber, aim.weaponCount).uppercase(),
-                    ),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    SwitchChevron(mirrored = true)
+                    FitText(
+                        stringResource(R.string.aim_weapon_cycle, aim.weaponNumber, aim.weaponCount).uppercase(),
+                        Modifier.weight(1f, fill = false),
+                        style = HudType.ChipLabel.copy(letterSpacing = 0.1.em, lineHeight = 12.sp), color = AimBlue,
+                        // Schmale Leiste: kürzere Fassungen statt „…"
+                        fallbacks = listOf(
+                            stringResource(R.string.aim_weapon_cycle_short, aim.weaponNumber, aim.weaponCount).uppercase(),
+                            stringResource(R.string.aim_weapon_count, aim.weaponNumber, aim.weaponCount).uppercase(),
+                        ),
+                    )
+                    SwitchChevron(mirrored = false)
+                }
             }
         }
     }
+}
+
+/** Kleiner Pfeil der Wechsel-Anzeige auf der Waffenkarte (links gespiegelt). */
+@Composable
+private fun SwitchChevron(mirrored: Boolean) {
+    Image(
+        painterResource(R.drawable.ic_chevron_right), null,
+        Modifier.size(12.dp).then(if (mirrored) Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier),
+        colorFilter = ColorFilter.tint(AimBlue),
+    )
 }
 
 /** KRAFT-Regler (Verlauf Rost → Gelb, weißer Knopf); setzt beim Loslassen die Kraft der Waffe. */

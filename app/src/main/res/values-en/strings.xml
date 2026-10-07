@@ -154,7 +154,6 @@
     <string name="hud_enemy">Player %1$d</string>
     <string name="hud_turn_player">Player %1$d · Turn %2$d</string>
     <string name="hud_resolve">Resolving</string>
-    <string name="hud_turn_time">%1$d s</string>
     <string name="hud_per_meter">/m</string>
     <string name="hud_wind_left_cd">Wind to the left</string>
     <string name="hud_wind_right_cd">Wind to the right</string>
@@ -163,7 +162,11 @@
     <string name="tool_undo">Undo</string>
     <string name="tool_repair">Repair</string>
     <string name="tool_delete">Demolish</string>
-    <string name="tool_door">Door</string>
+    <string name="tool_door">Open/close</string>
+    <string name="tool_more">More</string>
+    <string name="tool_repair_short">Repair</string>
+    <string name="tool_delete_short">Delete</string>
+    <string name="tool_door_short">Door</string>
     <string name="tool_none">Build</string>
     <string name="mode_aim">Aim</string>
     <string name="mode_build">Build</string>
@@ -178,10 +181,10 @@
     <string name="aim_pick_weapon">Tap a weapon, then drag</string>
     <string name="aim_splash">%1$s · Splash %2$s m</string>
     <string name="aim_wind_drift">Wind %1$s m</string>
-    <string name="aim_next_weapon_cd">Next weapon</string>
-    <string name="aim_weapon_cycle">Weapon %1$d / %2$d · Tap to switch</string>
-    <string name="aim_weapon_cycle_short">Weapon %1$d / %2$d · Tap</string>
-    <string name="aim_weapon_count">Weapon %1$d / %2$d</string>
+    <string name="aim_next_weapon_cd">Switch weapon</string>
+    <string name="aim_weapon_cycle">%1$d/%2$d · Switch weapon</string>
+    <string name="aim_weapon_cycle_short">%1$d/%2$d · Switch</string>
+    <string name="aim_weapon_count">%1$d/%2$d</string>
     <string name="kind_mg">Burst</string>
     <string name="kind_sniper">Piercing</string>
     <string name="kind_mortar">Shell</string>
@@ -265,4 +268,10 @@
     <string name="reject_undo_blocked">Cannot undo (damaged)</string>
     <string name="reject_unknown_content">Unknown part</string>
     <string name="reject_game_over">Game is over</string>
+
+    <!-- One-time gesture tips -->
+    <string name="tip_pinch_zoom">Two fingers: zoom and pan</string>
+    <string name="tip_double_tap">Double tap: fortress/overview</string>
+    <string name="tip_long_press">Long press: repair, demolish, door</string>
+    <string name="tip_dismiss_cd">Dismiss tip</string>
 </resources>

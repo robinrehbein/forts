@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.bollwerk.app.game.GameAudio
 import de.bollwerk.app.game.GameRuntime
 import de.bollwerk.app.game.HudUiState
+import de.bollwerk.app.settings.GestureTip
 import de.bollwerk.app.tutorial.TutorialUiModel
 import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
@@ -51,6 +52,7 @@ fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel, a
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val simRunning by viewModel.simRunning.collectAsStateWithLifecycle()
     val tutorial by viewModel.tutorial.collectAsStateWithLifecycle()
+    val tip by viewModel.tip.collectAsStateWithLifecycle()
     BackHandler { viewModel.onSystemBack() }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
         viewModel.onAppBackgrounded()
@@ -78,6 +80,8 @@ fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel, a
         worldToScreen = runtime?.let { worldToScreenOf(it) } ?: NO_SCREEN,
         tutorial = tutorial,
         releaseToFire = settings.releaseToFire,
+        tip = tip,
+        onTipDismiss = viewModel::dismissTip,
         onTutorialSkip = viewModel::skipTutorial,
         onTutorialClose = viewModel::closeTutorial,
         surface = {
@@ -118,6 +122,9 @@ fun GameContent(
     tutorialPhase: Float? = null,
     /** Einstellung „Loslassen = Feuern" (Tutorial-Hinweis zum Schießen). */
     releaseToFire: Boolean = false,
+    /** Einmaliger Gesten-Hinweis (nicht blockierender Chip), `null` = keiner. */
+    tip: GestureTip? = null,
+    onTipDismiss: () -> Unit = {},
     surface: @Composable () -> Unit = { Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) },
 ) {
     val anchors = remember { TutorialAnchors() }
@@ -128,7 +135,7 @@ fun GameContent(
         } else if (!state.boardHidden) {
             // Das HUD meldet die Flächen der Toolbar-Einträge, die der Coach-Mark hervorhebt (nur im Tutorial gesetzt)
             CompositionLocalProvider(LocalTutorialAnchors provides if (tutorial != null) anchors else null) {
-                GameHud(hud, toast, leftHanded, actions, worldToScreen = worldToScreen)
+                GameHud(hud, toast, leftHanded, actions, worldToScreen = worldToScreen, tip = tip, onTipDismiss = onTipDismiss)
                 if (state.techTreeOpen) TechTreeSheet(hud, actions)
             }
             // Coach-Mark über dem HUD; Pause, Einstellungen und Bestätigung liegen darüber, der Techbaum verdeckt ihn

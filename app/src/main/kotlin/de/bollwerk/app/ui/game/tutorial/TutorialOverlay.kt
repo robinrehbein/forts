@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -142,6 +143,14 @@ private fun CoachMark(
     val measurer = rememberTextMeasurer()
     val dragLabel = stringResource(R.string.tutorial_drag_label).uppercase()
     val oreLabel = stringResource(R.string.tutorial_ore_label).uppercase()
+    // Hervorgehobenes Toolbar-Element in den sichtbaren Bereich scrollen (schmale Geräte: Leiste scrollt)
+    LaunchedEffect(state.hint) {
+        anchors.focus = when (state.hint) {
+            TutorialHint.PICK_WOOD -> TutorialAnchorIds.tool("wood")
+            TutorialHint.PICK_MINE -> TutorialAnchorIds.tool("mine")
+            else -> null
+        }
+    }
     Box(modifier.fillMaxSize()) {
         // Zeichenfläche: nimmt keine Eingaben an (kein pointerInput), Berührungen erreichen HUD und Spielfläche darunter
         Canvas(Modifier.fillMaxSize()) {

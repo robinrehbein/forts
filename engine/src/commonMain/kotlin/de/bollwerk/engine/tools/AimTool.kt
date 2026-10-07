@@ -8,6 +8,7 @@ import de.bollwerk.engine.math.FastTrig
 import de.bollwerk.engine.math.FloatMath
 import de.bollwerk.engine.rules.RuleChecks
 import de.bollwerk.engine.rules.RulesValidator
+import de.bollwerk.engine.sim.BeamFlags
 import de.bollwerk.engine.sim.DeviceFlags
 import de.bollwerk.engine.sim.WeaponMode
 import de.bollwerk.engine.view.GameView
@@ -15,6 +16,7 @@ import kotlin.math.sqrt
 
 /**
  * Ergebnis der Zielvorschau einer Waffe: Flugbahn aus `Ballistics.predict` plus Kennzahlen (siehe [AimInfo]).
+ * Die Bahn endet am **ersten Treffer**, den [ShotSweep] mit derselben Kollision wie die Simulation findet ([outcome]).
  */
 class AimPreview(
     val deviceRef: Long,
@@ -23,7 +25,10 @@ class AimPreview(
     val trajectory: Trajectory,
     val impactX: Float,
     val impactY: Float,
-    /** Die Bahn endet auf dem Gelände ([impactX]/[impactY] ist ein echter Einschlag, Fadenkreuz zeichnen). */
+    /**
+     * Die Bahn endet an einem Treffer – Gelände, gegnerische Struktur oder (rot) die eigene Festung; [impactX]/[impactY]
+     * ist der Einschlag (Fadenkreuz bzw. Warnmarke zeichnen).
+     */
     val hasImpact: Boolean,
     val apexX: Float,
     val apexY: Float,
@@ -35,8 +40,12 @@ class AimPreview(
     val muzzleX: Float,
     val muzzleY: Float,
     val wind: Float,
-    /** Die Bahn verlässt die Karte (Rand/oben/unten) ohne Geländetreffer: kein Einschlag, [impactX]/[impactY] ist der Austrittspunkt. */
+    /** Die Bahn verlässt die Karte (Rand/oben/unten) ohne Treffer: kein Einschlag, [impactX]/[impactY] ist der Austrittspunkt. */
     val exitedMap: Boolean = false,
+    /** FX1: erster Treffer der Bahn (wie die Sim); [TrajectoryOutcome.BLOCKED_OWN] = Schuss explodiert in der eigenen Festung. */
+    val outcome: TrajectoryOutcome = TrajectoryOutcome.CLEAR,
+    /** Grund-Schlüssel für die Zielkarte ([ShotSweep.REASON_BLOCKED_OWN], "eigene Festung im Weg") oder null. */
+    val blockedReasonKey: String? = null,
 )
 
 /**
@@ -44,15 +53,33 @@ class AimPreview(
  * `Ballistics.predict(…, weapon: WeaponProps, …)` mit der Mündung bei dem Winkel (`RuleChecks.mountOn`/`DeviceGeometry`),
  * der Waffe (Mündungsgeschwindigkeit + `gravityScale`) und dem aktuellen Wind, Gelände und Karte – so entspricht die Vorschau
  * der echten Flugbahn. Hitscan-/Strahlwaffen zeigen eine gerade Linie über die Reichweite.
- * Das Ergebnis wird zwischengespeichert, solange Eingaben (Winkel, Kraft, Wind, Mündung) bitgleich bleiben.
+ *
+ * FX1: Die Bahn wird zusätzlich mit [ShotSweep] gegen Balken, Geräte und Gelände geprüft – derselbe Swept-Test wie
+ * `ProjectileSystem` (offene Türen, beim Schuss automatisch öffnende Tür und eigener Montagebalken ausgenommen). Sie endet
+ * am ersten Treffer; ist das die eigene Festung, ist [AimPreview.outcome] [TrajectoryOutcome.BLOCKED_OWN].
+ *
+ * Geprüft wird die **ganze Lebensdauer** des Geschosses ([ShotSweep.lifetimeTicks], z. B. Brandrakete 16 s); die
+ * gezeigte Bahn reicht ebenso weit (Puffer wächst bei Bedarf einmalig).
+ *
+ * Das Ergebnis wird zwischengespeichert, solange Eingaben (Winkel, Kraft, Wind, Mündung) bitgleich bleiben, sich die
+ * Struktur (Balken, Tür-Bits, Geräte; Lage auf 1 cm) nicht geändert hat und kein ablaufender Tür-Zeitgeber das Ergebnis
+ * ändern kann ([ShotSweep.stableTicks]). Ablaufende Zeitgeber unbeteiligter Türen lösen keine Neuberechnung aus.
  */
 class AimPreviewer {
     private val geo = FloatArray(DeviceGeometry.SIZE)
-    private val buf = FloatArray(ToolConst.TRAJECTORY_MAX_POINTS * 2)
-    private val buf0 = FloatArray(ToolConst.TRAJECTORY_MAX_POINTS * 2)
+    private var buf = FloatArray(ToolConst.TRAJECTORY_MAX_POINTS * 2)
+    private var buf0 = FloatArray(ToolConst.TRAJECTORY_MAX_POINTS * 2)
+    private val sweep = ShotSweep()
     private var cache: AimPreview? = null
     private var cacheQx = 0
     private var cacheQy = 0
+    private var cacheStructure = 0
+    private var cacheTick = Long.MIN_VALUE
+    private var cacheValidUntil = Long.MIN_VALUE
+
+    /** Anzahl der vollständigen Neuberechnungen (Tests: Zwischenspeicher). */
+    var computeCount: Long = 0L
+        private set
 
     /** Vorschau für Gerät [deviceId] (Slot) bei [angle]/[power] (bereits geklemmt). `null`, wenn das Gerät keine Waffe ist. */
     fun preview(view: GameView, deviceId: Int, angle: Float, power: Float): AimPreview? {
@@ -71,11 +98,14 @@ class AimPreviewer {
         // Mündung auf 1 mm quantisiert: Zittern der Struktur unter 1 mm löst keine neue Berechnung (und keinen Müll) aus
         val qx = (mx * MUZZLE_QUANT).toInt()
         val qy = (my * MUZZLE_QUANT).toInt()
+        val structure = structureKey(view)
         val c = cache
         if (c != null && c.deviceRef == ref && c.angle.toRawBits() == angle.toRawBits() &&
             c.power.toRawBits() == power.toRawBits() && c.wind.toRawBits() == wind.toRawBits() &&
-            qx == cacheQx && qy == cacheQy
+            qx == cacheQx && qy == cacheQy && structure == cacheStructure &&
+            view.tick >= cacheTick && view.tick < cacheValidUntil
         ) return c
+        computeCount++
 
         var e = if (view.player(devices.owner(deviceId)).facing >= 0) angle else FloatMath.PI - angle
         while (e > FloatMath.PI) e -= FloatMath.TWO_PI
@@ -85,11 +115,31 @@ class AimPreviewer {
         val result: AimPreview
         if (weapon.mode == WeaponMode.BALLISTIC) {
             val cfg = view.simConfig
-            val maxPoints = if (weapon.ttlTicks in 1 until ToolConst.TRAJECTORY_MAX_POINTS) weapon.ttlTicks else ToolConst.TRAJECTORY_MAX_POINTS
-            val n = Ballistics.predict(mx, my, angle, power, weapon, wind, cfg, buf, maxPoints, view.terrain, view.map)
+            // Prüfhorizont = Lebensdauer wie in der Sim (nicht die Zahl der Anzeige-Punkte), Puffer mit Platz für den Treffer
+            val maxPoints = ShotSweep.lifetimeTicks(weapon)
+            if (buf.size < (maxPoints + 1) * 2) {
+                buf = FloatArray((maxPoints + 1) * 2)
+                buf0 = FloatArray((maxPoints + 1) * 2)
+            }
+            var n = Ballistics.predict(mx, my, angle, power, weapon, wind, cfg, buf, maxPoints, view.terrain, view.map)
+            // erster Treffer wie in der Sim (Balken, Geräte, Gelände; Türen, Montagebalken) über die ganze Lebensdauer
+            val outcome = sweep.device(view, deviceId, angle, power)
+            val k = sweep.hitTick
+            val structureHit = outcome == TrajectoryOutcome.BLOCKED_OWN || outcome == TrajectoryOutcome.HIT_ENEMY
+            if (outcome.hasHit && k >= 0 && (structureHit || k < n - 1)) {
+                // Bahn am Treffer abschneiden: Punkte der Flugticks davor, dann der Treffer selbst
+                // (keep ≤ n ≤ maxPoints, Puffer hat maxPoints + 1 Punkte)
+                val keep = if (k < n) k else n
+                buf[keep * 2] = sweep.hitX; buf[keep * 2 + 1] = sweep.hitY
+                n = keep + 1
+            }
             val stopped = n > 0 && n < maxPoints
-            // Einschlag nur bei Geländetreffer (letzter Punkt liegt auf der Geländelinie), nicht beim Verlassen der Karte
-            val hasImpact = stopped && buf[(n - 1) * 2 + 1] >= view.terrain.heightAt(buf[(n - 1) * 2]) - ToolConst.IMPACT_TERRAIN_EPS
+            val hasImpact = if (outcome.hasHit) {
+                true
+            } else {
+                // Einschlag nur bei Geländetreffer (letzter Punkt liegt auf der Geländelinie), nicht beim Verlassen der Karte
+                stopped && buf[(n - 1) * 2 + 1] >= view.terrain.heightAt(buf[(n - 1) * 2]) - ToolConst.IMPACT_TERRAIN_EPS
+            }
             val exitedMap = stopped && !hasImpact
             var minY = my
             var apexX = mx
@@ -107,30 +157,75 @@ class AimPreviewer {
                 }
             }
             val pts = buf.copyOf(n * 2)
+            val shown = if (hasImpact && !outcome.hasHit) TrajectoryOutcome.TERRAIN else outcome
             result = AimPreview(
-                ref, angle, power, Trajectory(pts, n),
+                ref, angle, power, Trajectory(pts, n, shown),
                 impactX = if (n > 0) pts[(n - 1) * 2] else Float.NaN, impactY = if (n > 0) pts[(n - 1) * 2 + 1] else Float.NaN,
                 hasImpact = hasImpact, apexX = apexX, apexY = apexY, apexHeightM = FloatMath.max(0f, my - minY),
                 windDriftM = drift, splashRadiusM = weapon.splashRadius, elevationDeg = elevation, muzzleX = mx, muzzleY = my, wind = wind,
-                exitedMap = exitedMap,
+                exitedMap = exitedMap, outcome = shown, blockedReasonKey = reasonFor(shown),
             )
         } else {
-            val ex = mx + FastTrig.cos(angle) * weapon.maxRange
-            val ey = my - FastTrig.sin(angle) * weapon.maxRange
+            var ex = mx + FastTrig.cos(angle) * weapon.maxRange
+            var ey = my - FastTrig.sin(angle) * weapon.maxRange
+            val outcome = sweep.device(view, deviceId, angle, power)
+            if (outcome.hasHit) { ex = sweep.hitX; ey = sweep.hitY }
             result = AimPreview(
-                ref, angle, power, Trajectory(floatArrayOf(mx, my, ex, ey), 2),
-                impactX = ex, impactY = ey, hasImpact = false, apexX = Float.NaN, apexY = Float.NaN, apexHeightM = 0f,
+                ref, angle, power, Trajectory(floatArrayOf(mx, my, ex, ey), 2, outcome),
+                impactX = ex, impactY = ey, hasImpact = outcome.hasHit, apexX = Float.NaN, apexY = Float.NaN, apexHeightM = 0f,
                 windDriftM = 0f, splashRadiusM = weapon.splashRadius, elevationDeg = elevation, muzzleX = mx, muzzleY = my, wind = wind,
+                outcome = outcome, blockedReasonKey = reasonFor(outcome),
             )
         }
         cache = result
         cacheQx = qx
         cacheQy = qy
+        cacheStructure = structure
+        cacheTick = view.tick
+        val stable = sweep.stableTicks
+        cacheValidUntil = if (stable == Int.MAX_VALUE) Long.MAX_VALUE else view.tick + stable
         return result
     }
 
+    private fun reasonFor(o: TrajectoryOutcome): String? =
+        if (o == TrajectoryOutcome.BLOCKED_OWN) ShotSweep.REASON_BLOCKED_OWN else null
+
     private companion object {
         const val MUZZLE_QUANT: Float = 1000f
+        const val STRUCTURE_QUANT: Float = 100f
+
+        /**
+         * Schlüssel der Hindernislage für den Zwischenspeicher: lebende Balken mit Lage (1 cm), Material, Besitzer, Tür-Bits
+         * und ob ein Tür-Zeitgeber läuft (nicht sein Wert: der zählt nach jedem Schuss 2,6 s lang je Tick herunter; ob er das
+         * Ergebnis ändern kann, sagt [ShotSweep.stableTicks]); lebende Geräte mit Balken und Typ. Kein Hash-Container,
+         * keine Allokation.
+         */
+        fun structureKey(view: GameView): Int {
+            val beams = view.beamView
+            val nodes = view.nodeView
+            var h = -0x7ee3623b
+            for (j in 0 until beams.size) {
+                if (!beams.isAlive(j)) continue
+                val a = beams.nodeA(j); val b = beams.nodeB(j)
+                h = h * 31 + j
+                h = h * 31 + beams.material(j)
+                h = h * 31 + beams.owner(j)
+                h = h * 31 + (beams.flags(j) and (BeamFlags.DOOR_OPEN or BeamFlags.DOOR_PINNED))
+                h = h * 31 + (if (beams.doorTimer(j) > 0) 1 else 0)
+                h = h * 31 + (nodes.x(a) * STRUCTURE_QUANT).toInt()
+                h = h * 31 + (nodes.y(a) * STRUCTURE_QUANT).toInt()
+                h = h * 31 + (nodes.x(b) * STRUCTURE_QUANT).toInt()
+                h = h * 31 + (nodes.y(b) * STRUCTURE_QUANT).toInt()
+            }
+            val d = view.deviceView
+            for (i in 0 until d.size) {
+                if (!d.isAlive(i)) continue
+                h = h * 31 + i
+                h = h * 31 + d.type(i)
+                h = h * 31 + d.beam(i)
+            }
+            return h
+        }
     }
 }
 

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import de.bollwerk.app.R
+import de.bollwerk.app.settings.GestureTip
 import de.bollwerk.app.game.HudUiState
 import de.bollwerk.app.ui.components.consumeTaps
 import de.bollwerk.app.ui.game.GameToast
@@ -72,6 +73,9 @@ fun GameHud(
     actions: HudActions,
     modifier: Modifier = Modifier,
     worldToScreen: WorldToScreen = WorldToScreen { _, _ -> null },
+    /** Einmaliger Gesten-Hinweis unter der oberen Leiste, `null` = keiner. */
+    tip: GestureTip? = null,
+    onTipDismiss: () -> Unit = {},
 ) {
     var weaponsOpen by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier.fillMaxSize()) {
@@ -85,6 +89,10 @@ fun GameHud(
         ) {
             HudTopBar(hud, actions::pause, Modifier.align(Alignment.TopCenter))
             EnemyChip(hud, Modifier.align(Alignment.TopEnd).padding(top = 64.dp))
+            // Nicht im Zielmodus (Winkel-Karte liegt darüber) und nicht unter einem Hinweis-Toast
+            if (tip != null && hud.contextMenu == null && hud.mode != ToolMode.AIM && toast == null) {
+                GestureTipChip(tip, onTipDismiss, Modifier.align(Alignment.TopStart).padding(top = 64.dp))
+            }
             if (toast != null) ToastChip(toast, Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
 
             val aimMode = hud.mode == ToolMode.AIM

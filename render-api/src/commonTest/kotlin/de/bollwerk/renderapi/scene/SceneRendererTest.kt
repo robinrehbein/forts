@@ -7,6 +7,7 @@ import de.bollwerk.engine.tools.GhostBeam
 import de.bollwerk.engine.tools.GhostDevice
 import de.bollwerk.engine.tools.ToolSelection
 import de.bollwerk.engine.tools.Trajectory
+import de.bollwerk.engine.tools.TrajectoryOutcome
 import de.bollwerk.engine.view.FxEvent
 import de.bollwerk.renderapi.Camera
 import de.bollwerk.renderapi.GameRenderer
@@ -209,6 +210,44 @@ class SceneRendererTest {
         s.sink.reset()
         s.frame(overlay = ov2)
         assertEquals(baseRings, s.sink.count("strokeCircle"), "no impact without impact point")
+    }
+
+    @Test
+    fun aTrajectoryBlockedByTheOwnFortIsRedWithAWarningMarkerAtTheImpact() {
+        val s = setup()
+        s.frame()
+        val baseCircles = s.sink.circles.size
+        s.sink.reset()
+        val pts = FloatArray(60)
+        var n = 0
+        var x = 31f; var y = 27f; var vx = 14f; var vy = -22f
+        while (n < 30) { pts[n * 2] = x; pts[n * 2 + 1] = y; n++; x += vx * 0.12f; y += vy * 0.12f; vy += 9.81f * 0.12f }
+        val hx = pts[(n - 1) * 2]; val hy = pts[(n - 1) * 2 + 1]
+        val mortarSlot = (0 until s.scene.snap.deviceCount).first { s.scene.tables.devices[s.scene.snap.deviceType[it]].key == "mortar" }
+        val blocked = OverlayState(
+            mode = InteractionMode.AIM, trajectory = Trajectory(pts, n, TrajectoryOutcome.BLOCKED_OWN), impactX = hx, impactY = hy,
+            selectedDeviceRef = mortarSlot.toLong(),
+        )
+        s.sink.recordPolygons = true
+        s.frame(overlay = blocked)
+        val dots = s.sink.circles.drop(baseCircles).filter { it.color == Palette.INVALID }
+        assertTrue(dots.size > 15, "rote Bahnpunkte: ${dots.size}")
+        // keine weißen/gelben Bahnpunkte, kein gelbes Fadenkreuz
+        assertTrue(s.sink.circles.drop(baseCircles).none { it.color == Palette.HAZARD }, "kein Warngelb")
+        assertTrue(Palette.INVALID in s.sink.lineColors, "rotes Kreuz am Einschlag")
+        assertTrue(Palette.HAZARD !in s.sink.lineColors, "kein gelbes Fadenkreuz")
+        // Warndreieck (rot) knapp über dem Einschlag
+        val tri = s.sink.polygons.filter { it.color == Palette.INVALID && it.xy.size == 6 }
+        assertTrue(tri.isNotEmpty(), "Warndreieck")
+        val t = tri.last().xy
+        val cx = (t[0] + t[2] + t[4]) / 3f; val cy = (t[1] + t[3] + t[5]) / 3f
+        assertEquals(hx, cx, 0.6f)
+        assertTrue(cy < hy && hy - cy < 4f, "über dem Einschlag: $cy vs $hy")
+        // dieselbe Bahn ohne Eigentreffer: normales Fadenkreuz, keine roten Punkte
+        s.sink.reset()
+        s.frame(overlay = blocked.copy(trajectory = Trajectory(pts, n, TrajectoryOutcome.TERRAIN)))
+        assertTrue(s.sink.circles.drop(baseCircles).none { it.color == Palette.INVALID })
+        assertTrue(Palette.HAZARD in s.sink.lineColors)
     }
 
     @Test

@@ -5,6 +5,7 @@ import de.bollwerk.content.ContentDb
 import de.bollwerk.engine.command.Command
 import de.bollwerk.engine.command.CommandResult
 import de.bollwerk.engine.loop.CommandRecorder
+import de.bollwerk.engine.loop.CommandSource
 import de.bollwerk.engine.loop.GameSession
 import de.bollwerk.engine.sim.BeamFlags
 import de.bollwerk.engine.sim.Controller
@@ -16,6 +17,7 @@ import de.bollwerk.engine.sim.SimTables
 import de.bollwerk.engine.sim.TurnMode
 import de.bollwerk.engine.sim.WeaponMode
 import de.bollwerk.engine.view.FxEvent
+import de.bollwerk.engine.view.GameView
 import de.bollwerk.setup.MatchBootstrap
 
 data class DoorEvent(val tick: Long, val player: Int, val beamRef: Long, val openAfter: Boolean)
@@ -32,6 +34,8 @@ class AiMatch(
     turnTicks: Int = 0,
     agentFactory: (playerId: Int, difficulty: Difficulty, tables: SimTables, seed: Long) -> StandardAi =
         { p, d, t, s -> AiFactory.create(p, d, t, seed = s) as StandardAi },
+    /** Beobachter der KI-Ausgabe je Tick (vor dem Anwenden, mit der View, die die KI sah); null = keiner. */
+    commandTap: ((tick: Long, view: GameView, commands: List<Command>) -> Unit)? = null,
 ) {
     val setup = MatchSetup(
         seed, map,
@@ -61,7 +65,10 @@ class AiMatch(
     init {
         val tables = MatchBootstrap.create(db, setup).tables
         ais = difficulties.mapIndexed { p, d -> d?.let { agentFactory(p, it, tables, seed) } }
-        session = MatchBootstrap.createSession(db, setup, sources = ais.filterNotNull())
+        val sources: List<CommandSource> = ais.filterNotNull().map { ai ->
+            if (commandTap == null) ai else CommandSource { t, v -> ai.commandsFor(t, v).also { commandTap(t, v, it) } }
+        }
+        session = MatchBootstrap.createSession(db, setup, sources = sources)
         session.recorder = CommandRecorder { t, cmd, result ->
             if (result is CommandResult.Rejected) {
                 rejected[cmd.playerId]++

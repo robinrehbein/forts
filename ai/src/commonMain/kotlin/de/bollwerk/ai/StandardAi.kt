@@ -445,7 +445,7 @@ class StandardAi(
                 stats.shotsHeldForReserve++
                 continue // diese Waffe wartet; vielleicht hat die nächste ein lohnendes Ziel
             }
-            val angle = AimController.applyError(sol.angle, difficulty.aimErrorDeg, rng)
+            val angle = aim.applyErrorClear(view, me, i, props, w, sol, difficulty.aimErrorDeg, rng) // FX1: nie in die eigene Festung
             val setAim = Command.SetAim(tick, me, ref, angle, sol.power)
             val fire = Command.Fire(tick, me, ref)
             if (RulesValidator.validate(view, setAim) != null || RulesValidator.validate(view, fire) != null) continue

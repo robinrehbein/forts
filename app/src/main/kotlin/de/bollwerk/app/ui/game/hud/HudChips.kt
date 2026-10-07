@@ -262,18 +262,18 @@ fun teamColorOf(player: Int): Color = if (player == 1) BollwerkColors.TeamRed el
  */
 @Composable
 fun TurnChip(turn: TurnInfo, modifier: Modifier = Modifier) {
-    val play = turn.phase == TurnPhase.PLAY && turn.activePlayer >= 0
-    val team = teamColorOf(turn.activePlayer)
-    val label = if (play) stringResource(R.string.hud_turn_player, turn.activePlayer + 1, turn.turnNumber)
+    val m = turn.toChipModel()
+    val team = teamColorOf(m.teamPlayer)
+    val label = if (m.play) stringResource(R.string.hud_turn_player, m.playerNumber, m.turnNumber)
     else stringResource(R.string.hud_resolve)
     val iconTint = when {
-        turn.secondsLeft <= 10 -> BollwerkColors.Hazard
-        play -> team
+        m.urgent -> BollwerkColors.Hazard
+        m.play -> team
         else -> BollwerkColors.Text
     }
     ResourceChip(
-        R.drawable.ic_clock, iconTint, label, stringResource(R.string.hud_turn_time, turn.secondsLeft), modifier,
-        accent = if (play) team.copy(alpha = 0.85f) else null,
+        R.drawable.ic_clock, iconTint, label, m.timeText, modifier,
+        accent = if (m.play) team.copy(alpha = 0.85f) else null,
     )
 }
 

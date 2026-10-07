@@ -18,11 +18,16 @@ import de.bollwerk.app.match.MatchConfig
 import de.bollwerk.app.match.MatchResult
 import de.bollwerk.app.match.MatchStats
 import de.bollwerk.app.settings.AppSettings
+import de.bollwerk.app.settings.GestureTip
 import de.bollwerk.app.ui.components.LocalTextFitReporter
 import de.bollwerk.app.ui.components.TextFitReporter
 import de.bollwerk.app.ui.game.GameContent
 import de.bollwerk.app.ui.game.GameUiState
 import de.bollwerk.app.ui.game.hud.HudActions
+import de.bollwerk.app.ui.game.hud.MoreToolsBar
+import de.bollwerk.app.ui.game.GameToast
+import de.bollwerk.engine.command.RejectReason
+import de.bollwerk.engine.tools.ToolSelection
 import de.bollwerk.app.ui.game.hud.PreviewBattlefield
 import de.bollwerk.app.ui.menu.MainMenuContent
 import de.bollwerk.app.ui.menu.MainMenuUiState
@@ -77,14 +82,16 @@ class NarrowHudSnapshotTest(widthDp: String, locale: String) {
 
     private val catalog = HudFixtures.catalog
 
-    private fun game(hud: HudUiState, leftHanded: Boolean = false, mode: GameMode = GameMode.VS_AI) = paparazzi.snapshotWithoutClipping {
+    private fun game(
+        hud: HudUiState, leftHanded: Boolean = false, mode: GameMode = GameMode.VS_AI, tip: GestureTip? = null, toast: GameToast? = null,
+    ) = paparazzi.snapshotWithoutClipping {
         BollwerkTheme {
             Box(Modifier.fillMaxSize()) {
                 PreviewBattlefield(Modifier.fillMaxSize())
                 GameContent(
-                    state = GameUiState(MatchConfig(mode = mode), loading = false), hud = hud, toast = null, leftHanded = leftHanded,
+                    state = GameUiState(MatchConfig(mode = mode), loading = false), hud = hud, toast = toast, leftHanded = leftHanded,
                     actions = HudActions.NONE, onResume = {}, onRequestConfirm = {}, onOpenSettings = {}, onConfirm = {},
-                    onCancelConfirm = {}, onHandoverReady = {}, settingsOverlay = {}, surface = {},
+                    onCancelConfirm = {}, onHandoverReady = {}, settingsOverlay = {}, tip = tip, surface = {},
                 )
             }
         }
@@ -92,6 +99,10 @@ class NarrowHudSnapshotTest(widthDp: String, locale: String) {
 
     private fun buildHud(hotseat: Boolean = false) = HudPresenter.present(
         if (hotseat) HudFixtures.hotseatHud() else HudFixtures.mockupHud(), HudFixtures.buildTools(), catalog, hotseat = hotseat,
+    )
+
+    private fun selectedHud(sel: ToolSelection) = HudPresenter.present(
+        HudFixtures.mockupHud(), HudFixtures.buildTools().copy(selection = sel), catalog, hotseat = false,
     )
 
     private fun aimHud(hotseat: Boolean = false) = HudPresenter.present(
@@ -102,7 +113,25 @@ class NarrowHudSnapshotTest(widthDp: String, locale: String) {
 
     @Test fun buildLeftHanded() = game(buildHud(), leftHanded = true)
 
+    @Test fun buildWithGestureTip() = game(buildHud(), tip = GestureTip.LONG_PRESS)
+
+    @Test fun buildWithGestureTipAndToast() = game(buildHud(), tip = GestureTip.PINCH_ZOOM, toast = GameToast(RejectReason.NOT_ENOUGH_METAL, 1))
+
+    @Test fun buildDeleteSelected() = game(selectedHud(ToolSelection.Delete))
+
+    @Test fun buildDoorSelected() = game(selectedHud(ToolSelection.Door))
+
+    @Test fun buildRepairSelected() = game(selectedHud(ToolSelection.Repair))
+
+    /** Unterleiste „Mehr ›" geöffnet: Reparatur, Abreißen, Tür auf/zu mit vollem Label, Tür gewählt. */
+    @Test fun moreToolsBar() = paparazzi.snapshotWithoutClipping {
+        BollwerkTheme { Box(Modifier.fillMaxSize()) { MoreToolsBar(selectedHud(ToolSelection.Door), HudActions.NONE) {} } }
+    }
+
     @Test fun aim() = game(aimHud())
+
+    /** Zielmodus: der Hinweis-Chip erscheint dort nicht (Winkel-Karte). */
+    @Test fun aimWithGestureTip() = game(aimHud(), tip = GestureTip.DOUBLE_TAP)
 
     @Test fun aimLeftHanded() = game(aimHud(), leftHanded = true)
 

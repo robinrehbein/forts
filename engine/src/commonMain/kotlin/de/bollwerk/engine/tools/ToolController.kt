@@ -450,6 +450,7 @@ class ToolController(val settings: ToolSettings = ToolSettings()) {
                             deviceRef = p.deviceRef, angle = p.angle, power = p.power, elevationDeg = p.elevationDeg,
                             powerPercent = p.power * 100f, splashRadiusM = p.splashRadiusM, apexX = p.apexX, apexY = p.apexY,
                             apexHeightM = p.apexHeightM, windDriftM = p.windDriftM, hasImpact = p.hasImpact, exitedMap = p.exitedMap,
+                            outcome = p.outcome, blockedReasonKey = p.blockedReasonKey,
                         )
                         lastAimPreview = p
                         lastAimInfo = info

@@ -37,6 +37,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -85,6 +89,9 @@ fun BuildToolbar(
     modifier: Modifier = Modifier,
 ) {
     val active = hud.canCommand
+    // Unterleiste „Mehr": Reparatur, Abreißen, Tür auf/zu (wie „Waffen ›" eine Ebene darüber, damit die Hauptleiste nicht breiter wird)
+    var toolsOpen by remember { mutableStateOf(false) }
+    val toolsShown = moreToolsVisible(toolsOpen, active)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (weaponsOpen && active) {
             Row(Modifier.fillMaxWidth().padding(start = 64.dp, end = 64.dp), horizontalArrangement = Arrangement.End) {
@@ -95,17 +102,38 @@ fun BuildToolbar(
                 }
             }
         }
+        if (toolsShown) {
+            Row(Modifier.fillMaxWidth().padding(end = 64.dp), horizontalArrangement = Arrangement.End) {
+                MoreToolsBar(hud, actions) { toolsOpen = false }
+            }
+        }
         Row(
             Modifier.fillMaxWidth().height(ToolbarHeight).blockTouches().alpha(if (active) 1f else InactiveAlpha),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             CostBox(hud.selected, Modifier.width(58.dp).fillMaxHeight())
             HudPanel(Modifier.weight(1f).fillMaxHeight()) {
+                // Rechts fest stehend (nie scrollend): „Mehr ›"; links scrollen Material, Geräte, Zurück. Gleiche Breitenrechnung wie vor
+                // der Unterleiste (das feste Element belegt den Platz des früheren Reparatur-Eintrags), damit auf 720/800 dp nichts wegfällt.
                 BoxWithConstraints(Modifier.fillMaxHeight()) {
-                    val totalWeight = hud.materials.size + hud.economy.size + TECH_WEIGHT + WEAPONS_WEIGHT + UNDO_WEIGHT + REPAIR_WEIGHT
-                    val unit = (maxWidth - ToolbarRowPadding * 2 - GroupDividerWidth * 2) / totalWeight
+                    val totalWeight = hud.materials.size + hud.economy.size + TECH_WEIGHT + WEAPONS_WEIGHT + UNDO_WEIGHT
+                    val unit = (maxWidth - ToolbarRowPadding * 2 - GroupDividerWidth * 2 - PinnedToolWidth) / totalWeight
                     val compact = unit < MinToolbarUnit
-                    ToolbarItems(hud, weaponsOpen, onToggleWeapons, actions, active, compact)
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            ToolbarItems(hud, weaponsOpen, { toolsOpen = false; onToggleWeapons() }, actions, active, compact)
+                        }
+                        PlainItem(
+                            label = stringResource(R.string.tool_more) + " ›",
+                            selected = toolsShown || hud.repairSelected || hud.deleteSelected || hud.doorSelected,
+                            onClick = {
+                                if (!toolsShown && weaponsOpen) onToggleWeapons()
+                                toolsOpen = !toolsShown
+                            },
+                            modifier = Modifier.width(PinnedToolWidth), boxed = true, interactive = active,
+                            labelPadding = 2.dp,
+                        ) { VectorIcon(R.drawable.ic_wrench, BollwerkColors.Text) }
+                    }
                 }
             }
             if (hud.showEndTurn) EndTurnButton(actions::endTurn, Modifier.width(64.dp).fillMaxHeight(), enabled = active)
@@ -113,6 +141,45 @@ fun BuildToolbar(
         }
     }
 }
+
+/**
+ * Unterleiste „Mehr": Reparatur, Abreißen und Tür auf/zu mit vollem Label (je ein Tipp-Werkzeug, vorher nur per Langdruck
+ * erreichbar). Ein Tipp wählt das Werkzeug und schließt die Leiste; ein Tipp auf das gewählte Werkzeug hebt die Wahl auf.
+ */
+@Composable
+internal fun MoreToolsBar(hud: HudUiState, actions: HudActions, close: () -> Unit) {
+    fun pick(selected: Boolean, tool: ToolSelection) {
+        actions.pickMoreTool(selected, tool)
+        close()
+    }
+    HudPanel {
+        Row(Modifier.height(ToolbarHeight).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlainItem(
+                label = stringResource(R.string.tool_repair), selected = hud.repairSelected,
+                onClick = { pick(hud.repairSelected, ToolSelection.Repair) }, modifier = Modifier.width(MoreToolWidth),
+                boxed = true, labelPadding = 2.dp,
+            ) { VectorIcon(R.drawable.ic_wrench, BollwerkColors.Text) }
+            PlainItem(
+                label = stringResource(R.string.tool_delete), selected = hud.deleteSelected,
+                onClick = { pick(hud.deleteSelected, ToolSelection.Delete) }, modifier = Modifier.width(MoreToolWidth),
+                boxed = true, labelPadding = 2.dp,
+            ) { VectorIcon(R.drawable.ic_delete, BollwerkColors.Text) }
+            PlainItem(
+                label = stringResource(R.string.tool_door), selected = hud.doorSelected,
+                onClick = { pick(hud.doorSelected, ToolSelection.Door) }, modifier = Modifier.width(MoreToolWidth),
+                boxed = true, labelPadding = 2.dp,
+            ) { VectorIcon(R.drawable.ic_swap_layout, BollwerkColors.Text) }
+        }
+    }
+}
+
+/** Die Unterleiste „Mehr" ist nur mit Befehlsrecht offen (ohne: ausgegraut, keine Eingaben). */
+internal fun moreToolsVisible(open: Boolean, canCommand: Boolean): Boolean = open && canCommand
+
+/** Tipp auf ein Werkzeug der Unterleiste: wählt es, ein Tipp auf das gewählte hebt die Wahl auf. */
+internal fun HudActions.pickMoreTool(selected: Boolean, tool: ToolSelection) = selectTool(if (selected) ToolSelection.None else tool)
+
+private val MoreToolWidth = 84.dp
 
 /** „Zug beenden" anbieten: Hotseat, eigene Spielphase, mit Befehlsrecht. */
 val HudUiState.showEndTurn: Boolean
@@ -129,7 +196,7 @@ private fun ToolbarItems(
 ) {
     val scroll = rememberScrollState()
     val rowModifier = if (compact) Modifier.fillMaxHeight().scrollFade(scroll).horizontalScroll(scroll) else Modifier.fillMaxSize()
-    Row(rowModifier.padding(horizontal = ToolbarRowPadding), verticalAlignment = Alignment.CenterVertically) {
+    Row(rowModifier.padding(start = ToolbarRowPadding), verticalAlignment = Alignment.CenterVertically) {
         // Gewichtete Breite oder (kompakt) natürliche Breite mit Mindestmaß
         fun RowScope.slot(weight: Float): Modifier = if (compact) Modifier.widthIn(min = MinToolbarUnit) else Modifier.weight(weight)
         val pad = if (compact) CompactLabelPadding else 0.dp
@@ -151,18 +218,15 @@ private fun ToolbarItems(
             label = stringResource(R.string.tool_undo), selected = false, onClick = actions::undo, modifier = slot(UNDO_WEIGHT),
             enabled = hud.canUndo, boxed = true, interactive = active, labelPadding = pad,
         ) { VectorIcon(R.drawable.ic_undo, if (hud.canUndo) BollwerkColors.Text else HudColors.Label) }
-        PlainItem(
-            label = stringResource(R.string.tool_repair), selected = hud.repairSelected,
-            onClick = { actions.selectTool(if (hud.repairSelected) ToolSelection.None else ToolSelection.Repair) },
-            modifier = slot(REPAIR_WEIGHT), boxed = true, interactive = active, labelPadding = pad,
-        ) { VectorIcon(R.drawable.ic_wrench, BollwerkColors.Text) }
     }
 }
+
+/** Breite des festen „Mehr ›"-Eintrags (48 dp Touch-Ziel plus Rand); entspricht dem früheren Reparatur-Eintrag der kompakten Leiste. */
+private val PinnedToolWidth = 52.dp
 
 private const val TECH_WEIGHT = 1.25f
 private const val WEAPONS_WEIGHT = 1.1f
 private const val UNDO_WEIGHT = 1f
-private const val REPAIR_WEIGHT = 1.3f
 private val ToolbarRowPadding = 4.dp
 private val GroupDividerWidth = 8.dp
 private val CompactLabelPadding = 4.dp
@@ -225,9 +289,17 @@ fun CostBox(selected: SelectedInfo?, modifier: Modifier = Modifier) = LtrContent
             verticalArrangement = Arrangement.Center,
         ) {
             val nameRes = selected?.let { contentNameRes(it.id) } ?: R.string.tool_none
+            // Lange Namen (Tür auf/zu, Abreißen) passen auch bei 10 sp nicht in die 58-dp-Box: dann die Kurzfassung
+            val short = when (selected?.id) {
+                "repair" -> stringResource(R.string.tool_repair_short)
+                "delete" -> stringResource(R.string.tool_delete_short)
+                "door_tool" -> stringResource(R.string.tool_door_short)
+                else -> null
+            }
+            val name = stringResource(nameRes).uppercase()
             FitText(
-                stringResource(nameRes).uppercase(), style = HudType.ChipLabel.copy(fontSize = 10.sp, letterSpacing = 0.12.em),
-                color = HudColors.Label, textAlign = TextAlign.Center,
+                name, style = HudType.ChipLabel.copy(fontSize = 10.sp, letterSpacing = if (name.length > 7) 0.02.em else 0.12.em),
+                color = HudColors.Label, textAlign = TextAlign.Center, fallbacks = listOfNotNull(short?.uppercase()),
             )
             if (selected != null && selected.kind != null) {
                 Row(verticalAlignment = Alignment.Bottom) {
@@ -242,7 +314,12 @@ fun CostBox(selected: SelectedInfo?, modifier: Modifier = Modifier) = LtrContent
                     }
                 }
             } else if (selected != null) {
-                Image(painterResource(R.drawable.ic_wrench), null, Modifier.padding(top = 2.dp).size(20.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
+                val icon = when (selected.id) {
+                    "delete" -> R.drawable.ic_delete
+                    "door_tool" -> R.drawable.ic_swap_layout
+                    else -> R.drawable.ic_wrench
+                }
+                Image(painterResource(icon), null, Modifier.padding(top = 2.dp).size(20.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
             }
         }
     }

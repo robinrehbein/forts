@@ -34,7 +34,10 @@ data class OverlayState(
     val ghostDevice: GhostDevice? = null,
     val snaps: List<SnapHighlight> = emptyList(),
     val loupe: Loupe? = null,
-    /** Flugbahn in Welt-Metern (`Ballistics.predict`); Punkte werden zum Ende kleiner. */
+    /**
+     * Flugbahn in Welt-Metern (`Ballistics.predict`, am ersten Treffer abgeschnitten); Punkte werden zum Ende kleiner.
+     * `Trajectory.outcome == BLOCKED_OWN` (Schuss träfe die eigene Festung): rote Punkte, Warnmarke am Einschlag.
+     */
     val trajectory: Trajectory? = null,
     /** Einschlagspunkt der Vorschau (Fadenkreuz) oder null. */
     val impactX: Float = Float.NaN,

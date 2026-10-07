@@ -38,6 +38,11 @@ interface BeamView : PoolView {
     fun strain(id: Int): Float
     fun owner(id: Int): Int
     fun flags(id: Int): Int
+    /**
+     * Restzeit (Ticks) einer automatisch geöffneten Tür bis zum Schließen (0 = kein Timer). FX1, additiv: die
+     * Zielvorschau (`ShotSweep`) sagt damit voraus, ob eine gerade offene Tür während des Flugs zufällt.
+     */
+    fun doorTimer(id: Int): Int = 0
 }
 
 /**
@@ -136,4 +141,5 @@ class BeamPool(initialCapacity: Int = 256) : Pool(initialCapacity), BeamView {
     override fun strain(id: Int): Float = strainOf[id]
     override fun owner(id: Int): Int = ownerOf[id]
     override fun flags(id: Int): Int = flags[id]
+    override fun doorTimer(id: Int): Int = doorTimerTicks[id]
 }

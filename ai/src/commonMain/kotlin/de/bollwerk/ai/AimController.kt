@@ -4,12 +4,12 @@ import de.bollwerk.engine.math.Ballistics
 import de.bollwerk.engine.math.DeviceGeometry
 import de.bollwerk.engine.math.FastTrig
 import de.bollwerk.engine.math.FloatMath
-import de.bollwerk.engine.math.Geometry
-import de.bollwerk.engine.sim.BeamFlags
 import de.bollwerk.engine.sim.DeviceProps
 import de.bollwerk.engine.sim.SimConfig
 import de.bollwerk.engine.sim.WeaponMode
 import de.bollwerk.engine.sim.WeaponProps
+import de.bollwerk.engine.tools.ShotSweep
+import de.bollwerk.engine.tools.TrajectoryOutcome
 import de.bollwerk.engine.view.GameView
 import kotlin.math.sqrt
 
@@ -28,15 +28,20 @@ class AimSolution {
     var doorToOpen: Int = -1
     /** Abstand Drehpunkt → Ziel in m. */
     var distance: Float = 0f
+    /**
+     * FX1: Die vorhergesagte Bahn trifft zuerst die eigene Festung (eigener Balken/eigenes Gerät, gleiche Kollision wie
+     * die Sim über `ShotSweep`). Solche Lösungen haben [exposure] 0 und werden nie abgefeuert.
+     */
+    var selfBlocked: Boolean = false
 
     fun reset() {
         valid = false; angle = 0f; power = 1f; exposure = 0f; highArc = false
-        impactX = 0f; impactY = 0f; doorToOpen = -1; distance = 0f
+        impactX = 0f; impactY = 0f; doorToOpen = -1; distance = 0f; selfBlocked = false
     }
 
     fun copyFrom(o: AimSolution) {
         valid = o.valid; angle = o.angle; power = o.power; exposure = o.exposure; highArc = o.highArc
-        impactX = o.impactX; impactY = o.impactY; doorToOpen = o.doorToOpen; distance = o.distance
+        impactX = o.impactX; impactY = o.impactY; doorToOpen = o.doorToOpen; distance = o.distance; selfBlocked = o.selfBlocked
     }
 }
 
@@ -45,16 +50,21 @@ class AimSolution {
  * - **Ballistisch** (Mörser, Kanone, Brandrakete): [Ballistics.solveAngle] in der Waffen-Fassung, d. h. mit
  *   Mündungsgeschwindigkeit **und** `gravityScale` der Waffe sowie dem aktuellen Wind. Weil die Mündung vom Winkel
  *   abhängt (Drehpunkt + Rohr), wird der Löser zweimal mit der jeweils neuen Mündung aufgerufen. Flacher oder steiler
- *   Bogen und Kraftstufe werden nach Hindernisfreiheit der vorhergesagten Bahn ([Ballistics.predict] gegen [Obstacles])
- *   gewählt.
+ *   Bogen und Kraftstufe werden nach Hindernisfreiheit der vorhergesagten Bahn gewählt. Die Bahn verfolgt der gemeinsame
+ *   `ShotSweep` der Engine ([Obstacles.sweep]) – dieselbe Kollision wie Simulation und Zielvorschau (Teilschritte,
+ *   Swept-Test, Türen, Montagebalken). Trifft sie zuerst die eigene Festung ([AimSolution.selfBlocked]), ist die Lösung
+ *   wertlos; dann gewinnt der andere Bogen, eine andere Kraft, ein anderes Ziel oder eine andere Waffe.
  * - **Hitscan/Strahl** (MG, Scharfschütze, Laser): direkt auf das Ziel; die Mündung liegt auf dem Strahl vom
  *   Drehpunkt, daher ist der Winkel Drehpunkt → Ziel exakt.
  * - Zielfehler: [applyError] addiert eine annähernd normalverteilte Abweichung aus dem KI-Strom
- *   (σ = `Difficulty.aimErrorDeg`: Leicht 6°, Normal 3°, Schwer 1°).
+ *   (σ = `Difficulty.aimErrorDeg`: Leicht 6°, Normal 3°, Schwer 1°). [applyErrorClear] verhindert, dass der Fehler den
+ *   Schuss in die eigene Festung lenkt, ohne ihn zu verkleinern: neu ziehen (begrenzt), dann spiegeln, erst zuletzt der
+ *   fehlerfreie, geprüfte Winkel.
+ * - Der Bahn-Prüfhorizont ist die volle Lebensdauer des Geschosses ([ShotSweep.lifetimeTicks]), damit auch späte
+ *   Eigentreffer (Brandrakete) erkannt werden.
  */
 class AimController(private val obstacles: Obstacles) {
     private val geo = FloatArray(DeviceGeometry.SIZE)
-    private val path = FloatArray(MAX_POINTS * 2)
     private val hit = CastHit()
     private val circle = FloatArray(3)
     private val trial = AimSolution()
@@ -74,6 +84,16 @@ class AimController(private val obstacles: Obstacles) {
     var localEvals: Long = 0L; private set
     /** Bewertete (Ziel, Kraft, Bogen)-Kombinationen. */
     var arcEvaluations: Long = 0L; private set
+
+    /**
+     * FX1-Zähler: bewertete Bahnen, die zuerst die eigene Festung träfen; Zielfehler, die in die eigene Festung zeigten
+     * ([errorCorrections]), davon neu gezogen ([errorRedraws]) bzw. gespiegelt ([errorMirrors]); der Rest wurde auf den
+     * fehlerfreien Winkel zurückgenommen.
+     */
+    var selfBlockedArcs: Long = 0L; private set
+    var errorCorrections: Long = 0L; private set
+    var errorRedraws: Long = 0L; private set
+    var errorMirrors: Long = 0L; private set
 
     /** Drehpunkt der zuletzt bewerteten Waffe (für Tests/Debug). */
     var pivotX: Float = 0f; private set
@@ -112,10 +132,14 @@ class AimController(private val obstacles: Obstacles) {
             val preferHigh = weapon.minAimRad > HIGH_ARC_MIN_ELEVATION
             for (pi in tuning.powerSteps.indices) {
                 val power = FloatMath.clamp(tuning.powerSteps[pi], view.simConfig.minPower, view.simConfig.maxPower)
+                var preferredBlocked = false
                 for (arc in 0 until 2) {
-                    if (arc == 1 && !tuning.tryBothArcs) break
+                    // Eigentreffer-Vermeidung hängt nicht vom Schwierigkeitsgrad ab: ist der bevorzugte Bogen durch die eigene
+                    // Festung blockiert, prüft auch Leicht den anderen (FX1-Review)
+                    if (arc == 1 && !tuning.tryBothArcs && !preferredBlocked) break
                     val high = if (arc == 0) preferHigh else !preferHigh
                     if (!ballistic(view, me, deviceId, props, weapon, px, py, tx, ty, tr, targetId, power, high, facing, mount, autoDoor, trial)) continue
+                    if (arc == 0) preferredBlocked = trial.selfBlocked
                     trial.distance = dist
                     if (!out.valid || trial.exposure > out.exposure + EXPOSURE_EPS) out.copyFrom(trial)
                     if (out.exposure >= 0.99f) return true
@@ -145,6 +169,7 @@ class AimController(private val obstacles: Obstacles) {
                 break
             }
             if (door < 0) door = hit.doorCrossed
+            if (ignore2 < 0 && (hit.kind == CastHit.BEAM || hit.kind == CastHit.DEVICE) && hit.owner == me) out.selfBlocked = true
             if (hit.kind == CastHit.BEAM && pierce > 0 && hit.owner != me) {
                 pierce--
                 ignore2 = hit.id
@@ -226,42 +251,93 @@ class AimController(private val obstacles: Obstacles) {
         return true
     }
 
-    /** Bahn bei Winkel [a] und Kraft [power] vorhersagen und den ersten Treffer bewerten (füllt [out]). */
+    /**
+     * Bahn bei Winkel [a] und Kraft [power] mit dem gemeinsamen `ShotSweep` verfolgen (wie die Sim: Teilschritte,
+     * Swept-Test gegen Balken/Geräte/Gelände, Montagebalken in den ersten `sourceIgnoreTicks`, automatisch öffnende Tür)
+     * und den ersten Treffer bewerten (füllt [out]). Eigene geschlossene Türen gelten als passierbar (die KI öffnet sie,
+     * [AimSolution.doorToOpen]).
+     */
     private fun tracePath(
         view: GameView, me: Int, props: DeviceProps, weapon: WeaponProps, px: Float, py: Float, a: Float, power: Float,
         tx: Float, ty: Float, tr: Float, targetId: Int, mount: Int, autoDoor: Int, out: AimSolution,
     ) {
-        val cfg = view.simConfig
-        val wind = view.wind
-        val maxTicks = if (weapon.ttlTicks in 1 until MAX_POINTS) weapon.ttlTicks else MAX_POINTS
+        val sweep = obstacles.sweep
+        // Kollision über die ganze Lebensdauer wie in der Sim (nicht nur den Löser-Horizont MAX_POINTS)
+        val maxTicks = ShotSweep.lifetimeTicks(weapon)
         val mx = px + FastTrig.cos(a) * props.barrelLength
         val my = py - FastTrig.sin(a) * props.barrelLength
-        val n = Ballistics.predict(mx, my, a, power, weapon, wind, cfg, path, maxTicks, view.terrain, view.map)
         out.valid = true
         out.angle = a
         out.power = power
-        var prevX = mx; var prevY = my
-        var door = -1
-        val ignoreTicks = cfg.combat.sourceIgnoreTicks
-        for (k in 0 until n) {
-            val x = path[k * 2]; val y = path[k * 2 + 1]
-            val ign = if (k < ignoreTicks) mount else -1
-            if (obstacles.cast(prevX, prevY, x, y, weapon.projectileRadius, ign, me, autoDoor, false, hit)) {
-                if (door < 0) door = hit.doorCrossed
-                out.exposure = classify(me, hit, tx, ty, tr, targetId, weapon, view)
-                out.impactX = hit.x; out.impactY = hit.y
-                out.doorToOpen = door
-                return
-            }
-            if (door < 0) door = hit.doorCrossed
-            prevX = x; prevY = y
+        // eigene Türen genau wie die Sim (Eigentreffer!), offene Türen des Gegners bleiben offen (er schießt durch sie)
+        val outcome = sweep.ballistic(me, mount, autoDoor, mx, my, a, power, weapon, view.wind, maxTicks, passDoorsOf = me, timedDoorsOf = me)
+        out.doorToOpen = sweep.doorCrossed
+        out.selfBlocked = outcome == TrajectoryOutcome.BLOCKED_OWN
+        if (out.selfBlocked) selfBlockedArcs++
+        if (outcome.hasHit) {
+            Obstacles.copyHit(sweep, hit)
+            out.exposure = classify(me, hit, tx, ty, tr, targetId, weapon, view)
+            out.impactX = hit.x; out.impactY = hit.y
+            return
         }
-        // Gelände/Kartengrenze: nur Splash in Zielnähe zählt
-        val ddx = prevX - tx; val ddy = prevY - ty
+        // Karte verlassen / Lebensdauer: nur Splash in Zielnähe zählt
+        val ex = if (sweep.hitX.isNaN()) mx else sweep.hitX
+        val ey = if (sweep.hitY.isNaN()) my else sweep.hitY
+        val ddx = ex - tx; val ddy = ey - ty
         val d = sqrt(ddx * ddx + ddy * ddy)
         out.exposure = if (weapon.splashRadius > 0f && d < weapon.splashRadius * 0.7f + tr) SPLASH_NEAR else 0f
-        out.impactX = prevX; out.impactY = prevY
-        out.doorToOpen = door
+        out.impactX = ex; out.impactY = ey
+    }
+
+    /**
+     * Zielfehler wie [applyError], aber nie in die eigene Festung – ohne den Fehler zu verkleinern (FX1-Review): Trifft
+     * die Bahn beim gestörten Winkel zuerst die eigene Festung (gemeinsamer `ShotSweep`, Türzustand beim Schuss), wird
+     * bis zu [ERROR_REDRAWS]-mal neu gezogen (gleiche Verteilung, beschränkt auf freie Winkel; aus demselben KI-Strom,
+     * deterministisch). Sind alle Ziehungen blockiert, wird die erste Abweichung gespiegelt (`2·sol.angle − noisy`:
+     * gleicher Betrag, andere Richtung); erst wenn auch das blockiert ist oder außerhalb der Zielgrenzen liegt, gilt der
+     * fehlerfreie Winkel der Lösung [sol] (die selbst frei ist, sonst hätte sie kein Freiliegen). Benutzt die
+     * Momentaufnahme des letzten [Obstacles.rebuild]. Ohne Blockade derselbe Zufallsverbrauch wie [applyError].
+     */
+    fun applyErrorClear(
+        view: GameView, me: Int, deviceId: Int, props: DeviceProps, weapon: WeaponProps, sol: AimSolution, sigmaDeg: Float,
+        rng: AiRng,
+    ): Float {
+        val noisy = applyError(sol.angle, sigmaDeg, rng)
+        if (noisy == sol.angle || !selfBlockedAt(view, me, deviceId, props, weapon, noisy, sol.power)) return noisy
+        errorCorrections++
+        for (r in 0 until ERROR_REDRAWS) {
+            val again = applyError(sol.angle, sigmaDeg, rng)
+            if (!selfBlockedAt(view, me, deviceId, props, weapon, again, sol.power)) {
+                errorRedraws++
+                return again
+            }
+        }
+        val mirrored = sol.angle + (sol.angle - noisy)
+        if (elevationOk(mirrored, view.player(me).facing, weapon) &&
+            !selfBlockedAt(view, me, deviceId, props, weapon, mirrored, sol.power)
+        ) {
+            errorMirrors++
+            return mirrored
+        }
+        return sol.angle
+    }
+
+    /** Träfe Waffe [deviceId] bei Winkel [a] und Kraft [power] zuerst die eigene Festung? (Türzustand wie beim Schuss.) */
+    fun selfBlockedAt(view: GameView, me: Int, deviceId: Int, props: DeviceProps, weapon: WeaponProps, a: Float, power: Float): Boolean {
+        val sweep = obstacles.sweep
+        DeviceGeometry.mount(view, deviceId, geo)
+        val px = geo[DeviceGeometry.PIVOT_X]; val py = geo[DeviceGeometry.PIVOT_Y]
+        val mount = view.deviceView.beam(deviceId)
+        val autoDoor = autoOpenDoor(view, me, px, py)
+        val mx = px + FastTrig.cos(a) * props.barrelLength
+        val my = py - FastTrig.sin(a) * props.barrelLength
+        val outcome = if (weapon.mode == WeaponMode.BALLISTIC) {
+            sweep.ballistic(me, mount, autoDoor, mx, my, a, power, weapon, view.wind, ShotSweep.lifetimeTicks(weapon), timedDoorsOf = me)
+        } else {
+            val reach = if (weapon.maxRange > 0f) weapon.maxRange else 200f
+            sweep.ray(me, mount, autoDoor, mx, my, mx + FastTrig.cos(a) * reach, my - FastTrig.sin(a) * reach, weapon.projectileRadius)
+        }
+        return outcome == TrajectoryOutcome.BLOCKED_OWN
     }
 
     /**
@@ -361,29 +437,15 @@ class AimController(private val obstacles: Obstacles) {
 
     /**
      * Die Tür, die das Waffen-System beim Schuss automatisch öffnet: nächste eigene Tür (kein Trümmer) im Umkreis
-     * `DoorConfig.searchRadius` um den Drehpunkt (Prototyp `doorFor`). −1 = keine.
+     * `DoorConfig.searchRadius` um den Drehpunkt (Prototyp `doorFor`). −1 = keine. Gemeinsam mit der Zielvorschau
+     * ([ShotSweep.autoOpenDoor]).
      */
-    fun autoOpenDoor(view: GameView, me: Int, px: Float, py: Float): Int {
-        val beams = view.beamView
-        val nodes = view.nodeView
-        val mats = view.tables.materials
-        val r = view.simConfig.door.searchRadius
-        var best = -1
-        var bd = r * r
-        for (j in 0 until beams.size) {
-            if (!beams.isAlive(j) || beams.owner(j) != me) continue
-            if ((beams.flags(j) and BeamFlags.DEBRIS) != 0) continue
-            val m = beams.material(j)
-            if (m < 0 || m >= mats.size || !mats[m].isDoor) continue
-            val a = beams.nodeA(j); val b = beams.nodeB(j)
-            val d2 = Geometry.pointSegmentDistSq(px, py, nodes.x(a), nodes.y(a), nodes.x(b), nodes.y(b))
-            if (d2 < bd) { bd = d2; best = j }
-        }
-        return best
-    }
+    fun autoOpenDoor(view: GameView, me: Int, px: Float, py: Float): Int = ShotSweep.autoOpenDoor(view, me, px, py)
 
     companion object {
         const val MAX_POINTS: Int = 720
+        /** Neue Ziehungen des Zielfehlers, wenn er in die eigene Festung zeigt ([applyErrorClear]). */
+        const val ERROR_REDRAWS: Int = 3
         private const val RANGE_SLACK = 4f
         private const val SOLVE_ITERATIONS = 3
         private const val CACHE_SIZE = 48

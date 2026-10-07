@@ -88,7 +88,9 @@ class GameRuntimeIntegrationTest {
         touch(TouchSample.MOVE, 1000f, 340f)
         val o = runtime.overlaySource.current()
         assertEquals(InteractionMode.AIM, o.mode)
-        assertTrue((o.trajectory?.count ?: 0) > 2, "trajectory preview while aiming")
+        // FX1: Die Vorschau endet am ersten Treffer (hier ggf. die eigene Festung, dann nur der Treffpunkt) – sie muss aber da sein.
+        val traj = assertNotNull(o.trajectory, "trajectory preview while aiming")
+        assertTrue(traj.count >= 1, "trajectory has points, got ${traj.count}")
         touch(TouchSample.UP, 1000f, 340f, count = 0)
         frames(2)
         val s = c.runner.state

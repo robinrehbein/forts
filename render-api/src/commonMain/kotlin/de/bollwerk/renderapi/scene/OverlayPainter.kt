@@ -177,9 +177,14 @@ internal class OverlayPainter(
         }
     }
 
-    /** Flugbahn: Punkte in gleichen Abständen, zum Ende kleiner und von weiß nach Warngelb; Einschlag-Fadenkreuz. */
+    /**
+     * Flugbahn: Punkte in gleichen Abständen, zum Ende kleiner und von weiß nach Warngelb; Einschlag-Fadenkreuz.
+     * FX1: Trifft die Bahn zuerst die eigene Festung ([de.bollwerk.engine.tools.Trajectory.blockedOwn]), sind alle Punkte rot
+     * (Stil-Bibel: rot = ungültig) und am Einschlag steht eine Warnmarke statt des Fadenkreuzes.
+     */
     private fun trajectory(snap: FrameSnapshot, o: OverlayState, count: Int) {
         val tr = o.trajectory ?: return
+        val blocked = tr.blockedOwn
         val sink = c.sink
         val dp = c.dp
         val step = maxOf(0.75f, 15f * dp)
@@ -206,14 +211,58 @@ internal class OverlayPainter(
                 val u = k.toFloat() / n
                 val rr = maxOf(1.6f * dp, (SceneContext.lerp(5.2f, 2.4f, u)) * dp)
                 sink.fillCircle(x + 0.6f * dp, y + 0.9f * dp, rr + 0.6f * dp, Palette.withAlpha(Palette.INK, 0.549f))
-                sink.fillCircle(x, y, rr, if (u < 0.6f) Palette.WHITE else if (u < 0.8f) Palette.CREAM else Palette.HAZARD)
+                val dot = if (blocked) Palette.INVALID else if (u < 0.6f) Palette.WHITE else if (u < 0.8f) Palette.CREAM else Palette.HAZARD
+                sink.fillCircle(x, y, rr, dot)
                 k++
                 pos += step
             }
             acc = seg - (pos - step)
             if (acc >= step) acc = 0f
         }
-        if (hasHit) impact(snap, o)
+        if (hasHit) {
+            if (blocked) blockedImpact(snap, o) else impact(snap, o)
+        }
+    }
+
+    /**
+     * Warnmarke am Einschlag in der eigenen Festung: roter Splash-Ring, roter Kreis mit Kreuz und darüber ein rotes
+     * Warndreieck mit Ausrufezeichen (Stil-Bibel: rot = ungültig). Allokationsfrei.
+     */
+    private fun blockedImpact(snap: FrameSnapshot, o: OverlayState) {
+        val sink = c.sink
+        val dp = c.dp
+        val hx = o.impactX; val hy = o.impactY
+        val splash = splashOfSelected(snap, o)
+        if (splash > 0f) devices.ringDashed(hx, hy, splash, 2f * dp, SceneContext.a(Palette.INVALID, 0.9f))
+        val R = 11f * dp
+        val pu = 1f + (if (c.reduced) 0f else 0.08f * sin(c.time * 8f))
+        sink.strokeCircle(hx, hy, R * pu, 5f * dp, Palette.withAlpha(Palette.INK, 0.6f))
+        sink.strokeCircle(hx, hy, R * pu, 3f * dp, Palette.INVALID)
+        val k = R * 0.55f
+        val w = 3f * dp
+        sink.line(hx - k, hy - k, hx + k, hy + k, w, Palette.INVALID, true)
+        sink.line(hx - k, hy + k, hx + k, hy - k, w, Palette.INVALID, true)
+        // Warndreieck über dem Einschlag
+        val ts = 13f * dp
+        val tx = hx; val ty = hy - R * 1.6f - ts
+        val p = c.poly2
+        p[0] = tx; p[1] = ty - ts
+        p[2] = tx + ts * 1.1f; p[3] = ty + ts * 0.8f
+        p[4] = tx - ts * 1.1f; p[5] = ty + ts * 0.8f
+        c.polyOutlined2(3, Palette.INVALID, Palette.withAlpha(Palette.INK, 0.8f), 2f * dp)
+        sink.line(tx, ty - ts * 0.45f, tx, ty + ts * 0.2f, 2.6f * dp, Palette.WHITE, true)
+        sink.fillCircle(tx, ty + ts * 0.52f, 1.6f * dp, Palette.WHITE)
+    }
+
+    /** Splash-Radius der gewählten Waffe (0 ohne Auswahl/Splash). */
+    private fun splashOfSelected(snap: FrameSnapshot, o: OverlayState): Float {
+        if (o.selectedDeviceRef < 0) return 0f
+        val slot = selectedDeviceSlot(snap, o.selectedDeviceRef)
+        if (slot < 0) return 0f
+        val type = snap.deviceType[slot]
+        if (type < 0 || type >= c.tables.devices.size) return 0f
+        val w = c.tables.devices[type].weapon
+        return if (w >= 0 && w < c.tables.weapons.size) c.tables.weapons[w].splashRadius else 0f
     }
 
     private fun impact(snap: FrameSnapshot, o: OverlayState) {

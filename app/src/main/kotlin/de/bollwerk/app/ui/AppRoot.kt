@@ -81,6 +81,8 @@ fun AppRoot(app: AppViewModel) {
                                     settings = graph.settings.settings,
                                     decimalSeparator = separator,
                                     entryId = entry.id,
+                                    gestureTips = graph.settings.gestureTips,
+                                    onTipSeen = { tip -> graph.settings.updateGestureTips { it.markSeen(tip) } },
                                     tutorialStore = TutorialStore { completed -> graph.settings.updateTutorial { it.afterFinish(completed) } },
                                 )
                             }

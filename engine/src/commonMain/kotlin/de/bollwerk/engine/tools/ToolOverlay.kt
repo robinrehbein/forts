@@ -39,7 +39,20 @@ data class AimInfo(
     val hasImpact: Boolean,
     /** Die Bahn verlässt die Karte ohne Geländetreffer (kein Einschlag, nichts in die Luft zeichnen). */
     val exitedMap: Boolean = false,
-)
+    /**
+     * FX1: erster Treffer der Bahn mit derselben Kollision wie die Sim ([ShotSweep]). [TrajectoryOutcome.BLOCKED_OWN]:
+     * der Schuss explodiert in der eigenen Festung (Bahn rot, Warnmarke am Einschlag).
+     */
+    val outcome: TrajectoryOutcome = TrajectoryOutcome.CLEAR,
+    /**
+     * Kurzer Grund für die Zielkarte als Ressourcen-Schlüssel, z. B. [ShotSweep.REASON_BLOCKED_OWN]
+     * (`aim_blocked_own_fort`: de "eigene Festung im Weg", en "own fort in the way"); null = kein Hinweis.
+     */
+    val blockedReasonKey: String? = null,
+) {
+    /** Der Schuss träfe zuerst die eigene Festung. */
+    val blockedOwn: Boolean get() = outcome == TrajectoryOutcome.BLOCKED_OWN
+}
 
 /** Aktion eines Tipp-Werkzeugs bzw. Kontextmenü-Eintrags. */
 enum class TapAction { REPAIR, DELETE, DOOR }
