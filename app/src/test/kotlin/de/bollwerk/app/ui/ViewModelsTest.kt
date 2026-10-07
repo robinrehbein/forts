@@ -13,6 +13,7 @@ import de.bollwerk.app.nav.Navigator
 import de.bollwerk.app.nav.Screen
 import de.bollwerk.app.settings.AppSettings
 import de.bollwerk.app.settings.SetupPrefs
+import de.bollwerk.app.settings.TutorialProgress
 import de.bollwerk.app.ui.components.SliderDragState
 import de.bollwerk.app.ui.game.GameOverlay
 import de.bollwerk.app.ui.game.HandoverState
@@ -75,14 +76,74 @@ class MainMenuViewModelTest : ViewModelTestBase() {
     }
 
     @Test
-    fun tutorialAndCreditsShowDialogsThatCanBeDismissed() {
-        vm.onTutorial()
-        assertEquals(MenuDialog.TUTORIAL_SOON, vm.state.value.dialog)
-        assertEquals(Screen.MainMenu, nav.current.screen)
+    fun creditsShowADialogThatCanBeDismissed() {
         vm.onCredits()
         assertEquals(MenuDialog.CREDITS, vm.state.value.dialog)
         vm.onDismissDialog()
         assertNull(vm.state.value.dialog)
+    }
+
+    @Test
+    fun tutorialButtonStartsTheGuidedTutorialMatch() {
+        vm.onTutorial()
+        val screen = assertIs<Screen.Game>(nav.current.screen)
+        assertEquals(MatchConfig.tutorial(), screen.config)
+        assertTrue(screen.config.tutorial)
+        assertNull(vm.state.value.dialog)
+    }
+
+    @Test
+    fun tutorialButtonOpensItOnlyOnce() {
+        vm.onTutorial()
+        vm.onTutorial()
+        assertEquals(2, nav.stack.value.size)
+    }
+
+    @Test
+    fun firstLaunchOffersTheTutorialOnce() {
+        val fresh = FakeSettingsRepository(initialTutorial = TutorialProgress())
+        val menu = MainMenuViewModel(nav, fresh)
+        idle()
+        assertEquals(MenuDialog.TUTORIAL_OFFER, menu.state.value.dialog)
+        menu.onTutorialOfferLater()
+        idle()
+        assertNull(menu.state.value.dialog)
+        assertTrue(fresh.tutorialState.value.offered, "answered offer is remembered")
+        assertFalse(fresh.tutorialState.value.completed)
+        // ein zweiter Start des Menüs bietet es nicht noch einmal an
+        val again = MainMenuViewModel(Navigator(), fresh)
+        idle()
+        assertNull(again.state.value.dialog)
+    }
+
+    @Test
+    fun acceptingTheOfferStartsTheTutorialAndRemembersIt() {
+        val fresh = FakeSettingsRepository(initialTutorial = TutorialProgress())
+        val menu = MainMenuViewModel(nav, fresh)
+        idle()
+        menu.onTutorialOfferStart()
+        idle()
+        assertIs<Screen.Game>(nav.current.screen)
+        assertNull(menu.state.value.dialog)
+        assertTrue(fresh.tutorialState.value.offered)
+    }
+
+    @Test
+    fun dismissingTheOfferWithBackCountsAsAnswered() {
+        val fresh = FakeSettingsRepository(initialTutorial = TutorialProgress())
+        val menu = MainMenuViewModel(nav, fresh)
+        idle()
+        menu.onDismissDialog()
+        idle()
+        assertTrue(fresh.tutorialState.value.offered)
+    }
+
+    @Test
+    fun noOfferWhenTheTutorialWasAlreadyPlayed() {
+        val done = FakeSettingsRepository(initialTutorial = TutorialProgress(offered = false, completed = true))
+        val menu = MainMenuViewModel(nav, done)
+        idle()
+        assertNull(menu.state.value.dialog)
     }
 }
 
@@ -663,6 +724,16 @@ class ResultViewModelTest : ViewModelTestBase() {
         val game = assertIs<Screen.Game>(nav.current.screen)
         assertEquals(config.copy(seed = 99L), game.config)
         assertEquals(2, nav.stack.value.size)
+    }
+
+    @Test
+    fun rematchAfterTheTutorialIsAnOrdinaryBattle() {
+        val tutorial = MatchResult(MatchConfig.tutorial(), 0, EndReason.ENEMY_REACTOR_DESTROYED)
+        nav.push(Screen.Result(tutorial))
+        ResultViewModel(tutorial, nav) { 5L }.onRematch()
+        val game = assertIs<Screen.Game>(nav.current.screen)
+        assertFalse(game.config.tutorial)
+        assertEquals(5L, game.config.seed)
     }
 
     @Test

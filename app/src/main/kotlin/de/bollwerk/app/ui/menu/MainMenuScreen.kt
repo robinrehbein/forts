@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,6 +46,8 @@ fun MainMenuScreen(viewModel: MainMenuViewModel) {
         onBattle = viewModel::onBattle,
         onHotseat = viewModel::onHotseat,
         onTutorial = viewModel::onTutorial,
+        onTutorialOfferStart = viewModel::onTutorialOfferStart,
+        onTutorialOfferLater = viewModel::onTutorialOfferLater,
         onSettings = viewModel::onSettings,
         onCredits = viewModel::onCredits,
         onDismissDialog = viewModel::onDismissDialog,
@@ -65,13 +66,17 @@ fun MainMenuContent(
     onCredits: () -> Unit,
     onDismissDialog: () -> Unit,
     animate: Boolean = true,
+    onTutorialOfferStart: () -> Unit = {},
+    onTutorialOfferLater: () -> Unit = {},
 ) {
     Box(Modifier.fillMaxSize().background(BollwerkColors.Dark)) {
         MenuScene(animate = animate)
         BoxWithConstraints(Modifier.fillMaxSize().screenPadding(28.dp)) {
             val wordHeight = (maxHeight.value * 0.15f).coerceIn(40f, 84f).dp
             val buttonH = (maxHeight.value * 0.12f).coerceIn(48f, 58f).dp
-            Column(Modifier.fillMaxWidth(0.37f).widthIn(max = 310.dp), verticalArrangement = Arrangement.Top) {
+            // 37 % der Breite, aber nie schmaler als 260 dp (sonst schneiden 640-dp-Geräte „EINSTELLUNGEN" ab)
+            val columnWidth = (maxWidth * 0.37f).coerceIn(MENU_MIN_WIDTH, MENU_MAX_WIDTH)
+            Column(Modifier.width(columnWidth), verticalArrangement = Arrangement.Top) {
                 Wordmark(stringResource(R.string.title_wordmark), wordHeight)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -135,13 +140,16 @@ fun MainMenuContent(
             ) {
                 BodyText(stringResource(R.string.credits_body))
             }
-            MenuDialog.TUTORIAL_SOON -> IndustrialDialog(
-                title = stringResource(R.string.menu_tutorial),
+            MenuDialog.TUTORIAL_OFFER -> IndustrialDialog(
+                title = stringResource(R.string.tutorial_offer_title),
                 actions = {
-                    IndustrialButton(stringResource(R.string.action_ok), onDismissDialog, Modifier.weight(1f), style = ButtonStyle.Primary)
+                    IndustrialButton(stringResource(R.string.tutorial_offer_later), onTutorialOfferLater, Modifier.weight(1f), rivets = false)
+                    IndustrialButton(
+                        stringResource(R.string.tutorial_offer_start), onTutorialOfferStart, Modifier.weight(1f), style = ButtonStyle.Primary,
+                    )
                 },
             ) {
-                BodyText(stringResource(R.string.tutorial_soon_body))
+                BodyText(stringResource(R.string.tutorial_offer_body))
             }
             null -> Unit
         }
@@ -163,3 +171,14 @@ private fun MainMenuCreditsPreview() {
         MainMenuContent(MainMenuUiState(MenuDialog.CREDITS), {}, {}, {}, {}, {}, {}, animate = false)
     }
 }
+
+@Preview(widthDp = 800, heightDp = 360)
+@Composable
+private fun MainMenuTutorialOfferPreview() {
+    BollwerkTheme {
+        MainMenuContent(MainMenuUiState(MenuDialog.TUTORIAL_OFFER), {}, {}, {}, {}, {}, {}, animate = false)
+    }
+}
+
+private val MENU_MIN_WIDTH = 260.dp
+private val MENU_MAX_WIDTH = 310.dp

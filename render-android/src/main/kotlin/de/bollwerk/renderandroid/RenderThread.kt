@@ -13,7 +13,8 @@ import android.view.SurfaceHolder
  *
  * Beenden: [shutdown] blockiert (begrenzt), bis kein Zeichenaufruf mehr läuft; danach darf die Oberfläche freigegeben
  * werden (Vertrag von `SurfaceHolder.Callback.surfaceDestroyed`). Hängt der Thread über die Frist hinaus, meldet es das
- * (falsch), und [runAfterExit] erlaubt, Aufräumarbeit auf den Thread-Ausgang zu legen. Der Thread hält weder View noch Activity.
+ * (falsch) – danach wird nicht erneut gewartet, [isFinished] fragt nur ab –, und [runAfterExit] erlaubt, Aufräumarbeit
+ * auf den Thread-Ausgang zu legen. Der Thread hält weder View noch Activity.
  */
 internal class RenderThread(
     private val holder: SurfaceHolder,
@@ -27,10 +28,16 @@ internal class RenderThread(
     private var choreographer: Choreographer? = null
     private var lastDrawnNanos = 0L
 
-    override fun onLooperPrepared() {
-        val c = Choreographer.getInstance()
+    override fun onLooperPrepared() = onLoopStart()
+
+    /** Start des Takts auf dem Render-Thread (aus [onLooperPrepared]; eigene Methode, damit JVM-Tests sie aufrufen können). */
+    internal fun onLoopStart() {
+        // Dieser Thread besitzt die Session ab jetzt: Timing, Pausen-Ausklang und Frame-Abstand neu beginnen, sonst zählt
+        // der erste Frame nach Pause/Resume oder neuer Oberfläche einen Abstand über die ganze Pause (FrameStats, dt).
+        session.onThreadStart()
+        val c: Choreographer? = Choreographer.getInstance()
         choreographer = c
-        if (running) c.postFrameCallback(this)
+        if (running) c?.postFrameCallback(this)
     }
 
     override fun run() {
@@ -88,6 +95,8 @@ internal class RenderThread(
         }
         return !isAlive
     }
+
+    override fun isFinished(): Boolean = !isAlive
 
     override fun runAfterExit(action: Runnable) {
         val now = synchronized(exitLock) {

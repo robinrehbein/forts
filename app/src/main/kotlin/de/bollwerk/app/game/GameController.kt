@@ -134,6 +134,8 @@ class GameController(
     @Volatile private var running = false
     @Volatile private var paused = false
     @Volatile private var stopped = false
+    /** Pause nach einem Renderer-Wechsel erneut übernehmen (siehe [setRendererAttached]). */
+    @Volatile private var reapplyPause = false
 
     // ---- nur Sim-Thread (bzw. Aufrufer von stepOnce) ----
     private var lastNanos = UNSET
@@ -197,6 +199,20 @@ class GameController(
 
     val isPaused: Boolean get() = paused
 
+    /**
+     * Renderer an-/abhängen (App in den Hintergrund / zurück). Von jedem Thread. Abgehängt veröffentlicht der Runner keine
+     * Snapshots; eine währenddessen übernommene Pause stünde sonst nie im Snapshot (Renderer und Audio sähen nach der Rückkehr
+     * weiter `paused = false`, das Feuerknistern liefe im Pause-Dialog). Deshalb übernimmt der Sim-Schritt die Pause nach
+     * jedem Wechsel erneut und veröffentlicht sie.
+     */
+    fun setRendererAttached(attached: Boolean) {
+        runner.setRendererAttached(attached)
+        synchronized(lock) {
+            reapplyPause = true
+            lock.notifyAll()
+        }
+    }
+
     /** Beendet den Sim-Thread und wartet (begrenzt) auf ihn. Idempotent. */
     fun stop() {
         val t: Thread?
@@ -221,7 +237,7 @@ class GameController(
             if (paused) {
                 stepOnce() // übernimmt die Pause einmal (Snapshot + HUD mit „pausiert")
                 synchronized(lock) {
-                    while (paused && running) lock.wait()
+                    while (paused && running && !reapplyPause) lock.wait()
                 }
                 continue
             }
@@ -246,7 +262,9 @@ class GameController(
      */
     fun stepOnce(): Int {
         if (paused) {
-            if (!pauseApplied) {
+            if (!pauseApplied || reapplyPause) {
+                // Erst den Wunsch löschen, dann übernehmen: ein gleichzeitiger neuer Wechsel bleibt so nicht liegen
+                reapplyPause = false
                 pauseApplied = true
                 runner.advance(0f)
                 emitHud(clock.nanos())
@@ -255,6 +273,7 @@ class GameController(
             return 0
         }
         pauseApplied = false
+        reapplyPause = false // laufend veröffentlicht advance ohnehin (nach dem Anhängen sofort)
         workSteps++
         val now = clock.nanos()
         val dt = if (lastNanos == UNSET) 0f else ((now - lastNanos) * 1e-9).toFloat().coerceIn(0f, maxFrameSeconds)

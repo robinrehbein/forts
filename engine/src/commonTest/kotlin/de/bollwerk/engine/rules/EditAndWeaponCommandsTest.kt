@@ -293,4 +293,22 @@ class AimAndFireTest {
         rig.rejects(RejectReason.INVALID_TARGET, Command.Fire(rig.tick, 0, rig.dref(m)))
         assertFalse((rig.state.devices.flags[m] and DeviceFlags.FIRE_REQUESTED) != 0)
     }
+
+    @Test
+    fun deletingDebrisIsRejectedWithoutRefund() {
+        val rig = RulesRig(metal = 1000f, energy = 400f)
+        val beam = rig.beamBetween(rig.n26, rig.apex)
+        val t = rig.addDevice(TURBINE, beam, 0.6f)
+        rig.validates(null, Command.DeleteBeam(rig.tick, 0, rig.bref(beam)))
+        rig.validates(null, Command.DeleteDevice(rig.tick, 0, rig.dref(t)))
+        rig.state.beams.flags[beam] = rig.state.beams.flags[beam] or BeamFlags.DEBRIS
+        val metal = rig.player().metal
+        val energy = rig.player().energy
+        rig.rejects(RejectReason.INVALID_TARGET, Command.DeleteDevice(rig.tick, 0, rig.dref(t)))
+        rig.rejects(RejectReason.INVALID_TARGET, Command.DeleteBeam(rig.tick, 0, rig.bref(beam)))
+        assertTrue(rig.state.beams.isAlive(beam))
+        assertTrue(rig.state.devices.isAlive(t))
+        assertEquals(metal, rig.player().metal, 1e-3f, "keine Erstattung für Wrackteile")
+        assertEquals(energy, rig.player().energy, 0.2f)
+    }
 }

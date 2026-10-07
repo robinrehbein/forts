@@ -126,8 +126,12 @@ class HudPresenterTest {
         assertEquals(2, a.doorCount)
         assertTrue(a.doorsOpen)
         assertEquals(2, a.weaponCount)
+        assertEquals(1, a.weaponNumber, "Mörser ist die erste eigene Waffe: WAFFE 1 / 2")
+        val cannon = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.aimTools().copy(weaponRef = 78L, aim = null), catalog, false)
+        assertEquals(2, cannon.aim.weaponNumber)
         val none = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.aimTools().copy(weaponRef = -1, aim = null), catalog, false)
         assertNull(none.aim.weaponDeviceId)
+        assertEquals(0, none.aim.weaponNumber)
         assertFalse(none.aim.ready)
     }
 

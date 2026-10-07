@@ -22,7 +22,30 @@
     <string name="menu_credits">Credits</string>
     <string name="credits_title">Credits</string>
     <string name="credits_body">Bollwerk ist ein Arbeitstitel. Schriften: Bebas Neue (Dharma Type) und Rajdhani (Indian Type Foundry), lizenziert unter der SIL Open Font License 1.1. Die Lizenztexte liegen der App bei.</string>
-    <string name="tutorial_soon_body">Das Tutorial folgt in einer späteren Version. Probiere bis dahin ein Gefecht gegen die KI auf „Leicht“.</string>
+
+    <!-- Tutorial (WP14b) -->
+    <string name="tutorial_offer_title">Erstes Gefecht?</string>
+    <string name="tutorial_offer_body">Das Tutorial führt dich in drei kurzen Schritten durch Bauen, Wirtschaft und Schießen. Es dauert etwa zwei Minuten, der Gegner wartet.</string>
+    <string name="tutorial_offer_start">Tutorial starten</string>
+    <string name="tutorial_offer_later">Später</string>
+    <string name="tutorial_step">Schritt %1$d / %2$d</string>
+    <string name="tutorial_skip">Überspringen</string>
+    <string name="tutorial_step1_title">Balken bauen</string>
+    <string name="tutorial_step2_title">Mine bauen</string>
+    <string name="tutorial_step3_title">Mörser feuern</string>
+    <string name="tutorial_pick_wood">Tippe unten auf HOLZ, um einen Holzbalken zu wählen.</string>
+    <string name="tutorial_draw_beam">Ziehe von einem pulsierenden Knoten zum anderen.</string>
+    <string name="tutorial_pick_mine">Tippe unten auf MINE. Sie fördert Metall, aber nur über Erz.</string>
+    <string name="tutorial_place_mine">Tippe auf die Markierung über dem Erz, um die Mine zu setzen.</string>
+    <string name="tutorial_enter_aim">Wechsle mit ZIELEN in den Zielmodus.</string>
+    <string name="tutorial_aim_fire">Ziehe in Schussrichtung, dann tippe FEUER. Die Zuglänge bestimmt die Kraft.</string>
+    <string name="tutorial_aim_release">Ziehe in Schussrichtung und lass los, um zu feuern. Die Zuglänge bestimmt die Kraft.</string>
+    <string name="tutorial_back_to_build">Wechsle mit BAUEN zurück in den Baumodus.</string>
+    <string name="tutorial_drag_label">Zugrichtung = Schussrichtung</string>
+    <string name="tutorial_ore_label">Erz</string>
+    <string name="tutorial_done_title">Tutorial geschafft</string>
+    <string name="tutorial_done_body">Gut gemacht! Jetzt schlägt der Gegner zurück: Verteidige deine Festung und zerstöre seinen Reaktor.</string>
+    <string name="tutorial_done_continue">Weiter</string>
 
     <!-- Gefecht-Setup -->
     <string name="setup_title">Gefecht</string>
@@ -65,6 +88,7 @@
     <string name="settings_section_display">Anzeige</string>
     <string name="settings_sound">Effekt-Lautstärke</string>
     <string name="settings_music">Musik-Lautstärke</string>
+    <string name="settings_music_soon">Kommt später</string>
     <string name="settings_left_handed">Linkshänder-Layout</string>
     <string name="settings_left_handed_desc">Spiegelt Werkzeugleiste und Feuer-Knopf</string>
     <string name="settings_release_fire">Loslassen = Feuern</string>
@@ -132,7 +156,7 @@
     <string name="hud_rate">%1$s/s</string>
     <string name="hud_energy_cap">/%1$d</string>
     <string name="hud_enemy">Spieler %1$d</string>
-    <string name="hud_turn">Zug %1$d</string>
+    <string name="hud_turn_player">Spieler %1$d · Zug %2$d</string>
     <string name="hud_resolve">Auswertung</string>
     <string name="hud_turn_time">%1$d s</string>
     <string name="hud_per_meter">/m</string>
@@ -159,6 +183,9 @@
     <string name="aim_splash">%1$s · Splash %2$s m</string>
     <string name="aim_wind_drift">Wind %1$s m</string>
     <string name="aim_next_weapon_cd">Nächste Waffe</string>
+    <string name="aim_weapon_cycle">Waffe %1$d / %2$d · Antippen wechselt</string>
+    <string name="aim_weapon_cycle_short">Waffe %1$d / %2$d · Antippen</string>
+    <string name="aim_weapon_count">Waffe %1$d / %2$d</string>
     <string name="kind_mg">Salve</string>
     <string name="kind_sniper">Durchschlag</string>
     <string name="kind_mortar">Granate</string>
@@ -177,7 +204,7 @@
     <string name="tech_build">Bauen</string>
     <string name="tech_requires">Benötigt %1$s</string>
     <string name="tech_damage">Schaden %1$d</string>
-    <string name="tech_range">Reichweite %1$d m</string>
+    <string name="tech_range">Reichweite %1$d\u00A0m</string>
     <string name="tech_salvo" tools:ignore="PluralsCandidate">%1$d × %2$d Salve</string>
     <string name="tech_incendiary">%1$d + Brand</string>
     <string name="tech_beam">%1$d/s für %2$d s</string>
@@ -189,6 +216,7 @@
     <string name="ctx_door_close">Tür schließen</string>
     <string name="ctx_extinguish">Löschen</string>
     <string name="end_turn">Zug beenden</string>
+    <string name="end_turn_short">Zug Ende</string>
     <string name="scene_apex">SCHEITEL %1$d m</string>
     <string name="result_draw">Unentschieden</string>
     <string name="reason_timeout">Zeit abgelaufen</string>

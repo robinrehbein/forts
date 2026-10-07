@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     // Snapshot-Tests des HUD (Layoutlib, JVM). 1.3.5 unterstützt AGP 8.7 / compileSdk 35.
-    id("app.cash.paparazzi") version "1.3.5"
+    alias(libs.plugins.paparazzi)
 }
 
 android {
@@ -23,7 +23,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: schrumpft und optimiert (APK ~8,6 → ~2,1 MB, Compose ohne R8 spürbar langsamer). Keep-Regeln in proguard-rules.pro;
+            // die CI baut den Release (minifyReleaseWithR8), damit eine fehlende Regel den Build bricht.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -90,8 +93,8 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
     // Paparazzi-Tests sind JUnit-4-Regeln: auf der JUnit-Plattform über die Vintage-Engine
-    //noinspection UseTomlInstead (Version aus der JUnit-BOM; der Katalog gehört nicht zu diesem Modul)
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine")
+    // (Version aus der JUnit-BOM)
+    testRuntimeOnly(libs.junit.vintage.engine)
 }
 
 // Paparazzi-Snapshots werden in jedem Unit-Test-Lauf (`testDebugUnitTest`, `check`) gegen die Goldens unter

@@ -4,6 +4,8 @@ import de.bollwerk.ai.AiAgent
 import de.bollwerk.ai.AiFactory
 import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
+import de.bollwerk.app.tutorial.TutorialDriver
+import de.bollwerk.app.tutorial.TutorialGate
 import de.bollwerk.content.ContentDb
 import de.bollwerk.engine.loop.MatchRunner
 import de.bollwerk.engine.sim.Controller
@@ -24,6 +26,8 @@ class MatchSession(
     val ais: List<AiAgent>,
     /** Spieler-IDs der Menschen am Gerät (gegen KI einer, im Hotseat beide). */
     val humanPlayers: IntArray,
+    /** Sim-seitiger Teil des Tutorials (nur beim geführten Tutorial-Gefecht, sonst `null`). */
+    val tutorial: TutorialDriver? = null,
 ) {
     val tables: SimTables get() = runner.state.tables
     val map: MapSpec get() = runner.state.map
@@ -56,10 +60,12 @@ object MatchSessions {
         record: Boolean = false,
     ): MatchSession {
         val setup = config.toMatchSetup()
+        // Tutorial: konstanter, schwacher Wind (Seed-Wahl: `MatchConfig.TUTORIAL_SEED`), damit die ersten Schüsse berechenbar bleiben
+        val sim = if (config.tutorial) simConfig.copy(wind = simConfig.wind.copy(changeIntervalTicks = 0)) else simConfig
         val runner = MatchRunners.create(
             db = db,
             setup = setup,
-            config = simConfig,
+            config = sim,
             localPlayer = config.humanPlayerId,
             record = record,
             maxTicksPerAdvance = MAX_TICKS_PER_ADVANCE,
@@ -67,16 +73,19 @@ object MatchSessions {
         val tables = runner.state.tables
         val ais = ArrayList<AiAgent>()
         val humans = ArrayList<Int>()
+        // Tutorial: die KI ruht hinter einer Sperre, bis der Mörser gefeuert hat (TutorialDriver.openGates)
+        val gates = ArrayList<TutorialGate>()
         for ((id, p) in setup.players.withIndex()) {
             if (p.controller == Controller.AI) {
                 val ai = AiFactory.create(id, config.aiLevel.difficulty, tables, seed = setup.seed)
-                runner.session.addSource(ai)
+                if (config.tutorial) runner.session.addSource(TutorialGate(ai).also { gates.add(it) }) else runner.session.addSource(ai)
                 ais.add(ai)
             } else {
                 humans.add(id)
             }
         }
-        return MatchSession(config, runner, GameCatalog.from(db), ais, humans.toIntArray())
+        val tutorial = if (config.tutorial) TutorialDriver.attach(runner, db, config, gates) else null
+        return MatchSession(config, runner, GameCatalog.from(db), ais, humans.toIntArray(), tutorial)
     }
 
     /** Aufholgrenze je Frame (5 Ticks ≈ 83 ms); größere Rückstände werden verworfen statt nachgeholt. */

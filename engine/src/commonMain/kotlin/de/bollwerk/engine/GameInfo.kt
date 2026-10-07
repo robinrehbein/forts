@@ -12,5 +12,5 @@ object GameInfo {
      * Version des Sim-Verhaltens. Bei jeder Änderung, die bei gleichem Seed/gleichen Commands einen anderen
      * StateHash ergibt (neues System, geänderte Formel), erhöhen; steht in jedem Replay.
      */
-    const val ENGINE_VERSION: Int = 1
+    const val ENGINE_VERSION: Int = 2
 }

@@ -29,13 +29,25 @@ class SessionBehaviorTest {
     private var now = 1_000_000_000L
     private var frames = 0
 
-    /** Zeichnet einen Frame im Abstand [dtMs] und liefert, wie oft die Vollbild-Fläche (Bildschirmblitz) gefüllt wurde. */
+    /**
+     * Zeichnet einen Frame im Abstand [dtMs] und liefert, wie oft der Explosions-Blitz gezeichnet wurde. Der Blitz ist ein
+     * örtlicher Schein (`EffectPainter.drawBurst`, kein Vollbild-Rechteck mehr): `glow` um den Einschlagpunkt (20, 30) mit
+     * dem auf `BURST_MAX_M` = 5 m begrenzten Radius (Explosionsradius 4 m × 2,2), also `translate(20,30)` + `scale(5,5)`.
+     */
     private fun frame(dtMs: Float = 16.667f): Int {
         canvas.clear()
         now += (dtMs * 1e6f).toLong()
         session.drawFrame(canvas, now)
         frames++
-        return canvas.calls.count { it == "drawRect(0.0,0.0,1920.0,1080.0)" }
+        val c = canvas.calls
+        var n = 0
+        for (i in 0 until c.size - 1) if (c[i] == BURST_AT && c[i + 1] == BURST_SCALE) n++
+        return n
+    }
+
+    private companion object {
+        const val BURST_AT = "translate(20.0,30.0)"
+        const val BURST_SCALE = "scale(5.0,5.0)"
     }
 
     private fun explosion(damage: Float = 80f) {

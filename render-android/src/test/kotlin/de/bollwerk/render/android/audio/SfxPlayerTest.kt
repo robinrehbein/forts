@@ -156,6 +156,32 @@ class SfxPlayerTest {
         assertEquals(level, player.fireVolume)
     }
 
+    /**
+     * Regression (App aus dem Hintergrund zurück, Pause-Dialog offen): Der Renderer zeichnet weiter einen veralteten Snapshot
+     * mit brennenden Balken und ruft `setFireCount`/`update` je Frame. Nach [SfxPlayer.pause] dürfen dabei weder Knackser
+     * noch die Feuerschleife starten (SoundPool.autoPause hält nur bereits laufende Stimmen an).
+     */
+    @Test
+    fun pausedPlayerStartsNoVoicesUntilResume() {
+        player.setFireCount(5)
+        repeat(20) { clock.ms += 50; player.update() }
+        assertTrue(backend.calls.any { it.id == SfxId.FIRE_LOOP })
+        val loop = backend.calls.first { it.id == SfxId.FIRE_LOOP }.handle
+        player.pause()
+        assertTrue(player.isSuspended)
+        assertTrue(loop in backend.stopped, "Feuerschleife wird beim Anhalten gestoppt")
+        val before = backend.calls.size
+        repeat(120) { clock.ms += 33; player.setFireCount(5); player.update() }
+        clock.ms += 1000
+        player.play(SfxId.EXPLOSION)
+        assertEquals(before, backend.calls.size, "angehalten: keine neuen Stimmen")
+
+        player.resume()
+        repeat(20) { clock.ms += 50; player.update() }
+        assertTrue(backend.calls.drop(before).any { it.id == SfxId.FIRE_LOOP }, "nach dem Fortsetzen läuft das Feuer wieder")
+        assertTrue(backend.calls.drop(before).any { it.id == SfxId.CRACKLE })
+    }
+
     @Test
     fun fireLoopSilentWhenMuted() {
         player.settings = AudioSettings(muted = true)

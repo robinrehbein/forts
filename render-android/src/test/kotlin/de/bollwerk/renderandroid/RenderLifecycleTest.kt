@@ -12,6 +12,8 @@ class RenderLifecycleTest {
         var hangs = false
         var ended = false
         var exitAction: Runnable? = null
+        var finishedQueries = 0
+        override fun isFinished(): Boolean { finishedQueries++; return ended }
         override fun shutdown(): Boolean {
             shutdownCalls++
             if (!hangs) end()
@@ -98,11 +100,38 @@ class RenderLifecycleTest {
         ready()
         loops[0].hangs = true
         life.hostPaused = true; life.update()
-        loops[0].hangs = false // Treiber hat sich erholt: nächster shutdown() meldet das Ende
         life.hostPaused = false; life.update()
+        assertFalse(life.isRunning, "hängt noch")
+        loops[0].end() // Treiber hat sich erholt: der Thread läuft aus
+        life.update()
         assertTrue(life.isRunning)
         assertEquals(2, loops.size)
         assertFalse(life.hasLingeringThread)
+    }
+
+    @Test
+    fun lingeringThreadIsNeverJoinedAgainOnLaterLifecycleEvents() {
+        ready()
+        loops[0].hangs = true
+        // Hintergrund: ON_PAUSE -> update, surfaceDestroyed -> update, onDetachedFromWindow -> stop
+        life.lifecyclePaused = true; life.update()
+        assertEquals(1, loops[0].shutdownCalls, "erster (begrenzter) Join")
+        life.surfaceReady = false; life.update()
+        assertFalse(life.stop())
+        // Rückkehr, während er noch hängt
+        life.lifecyclePaused = false; life.surfaceReady = true; life.update()
+        life.hostPaused = true; life.update(); life.hostPaused = false; life.update()
+        assertEquals(1, loops[0].shutdownCalls, "kein erneutes blockierendes shutdown()/join auf dem UI-Thread")
+        assertTrue(loops[0].finishedQueries > 0, "nur nicht blockierend abgefragt")
+        assertEquals(1, timeouts)
+        assertFalse(life.isRunning)
+        assertEquals(1, loops.size)
+        loops[0].end()
+        assertTrue(life.stop(), "nach dem Ende gilt der Thread als beendet")
+        life.update()
+        assertTrue(life.isRunning)
+        assertEquals(2, loops.size)
+        assertEquals(1, loops[0].shutdownCalls)
     }
 
     @Test

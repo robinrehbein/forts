@@ -30,7 +30,8 @@ class MainActivity : ComponentActivity() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Kein FLAG_KEEP_SCREEN_ON für die ganze Activity: wach bleibt der Bildschirm nur, solange eine Partie läuft
+        // (GameSurface setzt keepScreenOn an der Spielfläche); Menüs, Pause und Ergebnis dürfen ausgehen.
         hideSystemBars()
         setContent { AppRoot(appViewModel) }
     }

@@ -18,7 +18,30 @@
     <string name="menu_credits">Credits</string>
     <string name="credits_title">Credits</string>
     <string name="credits_body">Bollwerk is a working title. Fonts: Bebas Neue (Dharma Type) and Rajdhani (Indian Type Foundry), licensed under the SIL Open Font License 1.1. The license texts ship with the app.</string>
-    <string name="tutorial_soon_body">The tutorial will follow in a later version. Until then, try a battle against the AI on “Easy”.</string>
+
+    <!-- Tutorial (WP14b) -->
+    <string name="tutorial_offer_title">First battle?</string>
+    <string name="tutorial_offer_body">The tutorial walks you through building, economy and shooting in three short steps. It takes about two minutes, and the enemy waits.</string>
+    <string name="tutorial_offer_start">Start tutorial</string>
+    <string name="tutorial_offer_later">Later</string>
+    <string name="tutorial_step">Step %1$d / %2$d</string>
+    <string name="tutorial_skip">Skip</string>
+    <string name="tutorial_step1_title">Build a beam</string>
+    <string name="tutorial_step2_title">Build a mine</string>
+    <string name="tutorial_step3_title">Fire the mortar</string>
+    <string name="tutorial_pick_wood">Tap WOOD below to pick a wooden beam.</string>
+    <string name="tutorial_draw_beam">Drag from one pulsing node to the other.</string>
+    <string name="tutorial_pick_mine">Tap MINE below. It produces metal, but only above ore.</string>
+    <string name="tutorial_place_mine">Tap the marker above the ore to place the mine.</string>
+    <string name="tutorial_enter_aim">Switch to aim mode with AIM.</string>
+    <string name="tutorial_aim_fire">Drag in the shot direction, then tap FIRE. The drag length sets the power.</string>
+    <string name="tutorial_aim_release">Drag in the shot direction and let go to fire. The drag length sets the power.</string>
+    <string name="tutorial_back_to_build">Switch back to build mode with BUILD.</string>
+    <string name="tutorial_drag_label">Drag direction = shot direction</string>
+    <string name="tutorial_ore_label">Ore</string>
+    <string name="tutorial_done_title">Tutorial complete</string>
+    <string name="tutorial_done_body">Well done! Now the enemy strikes back: defend your fortress and destroy their reactor.</string>
+    <string name="tutorial_done_continue">Continue</string>
 
     <!-- Battle setup -->
     <string name="setup_title">Battle</string>
@@ -61,6 +84,7 @@
     <string name="settings_section_display">Display</string>
     <string name="settings_sound">Effects volume</string>
     <string name="settings_music">Music volume</string>
+    <string name="settings_music_soon">Coming soon</string>
     <string name="settings_left_handed">Left-handed layout</string>
     <string name="settings_left_handed_desc">Mirrors the toolbar and the fire button</string>
     <string name="settings_release_fire">Release = fire</string>
@@ -128,7 +152,7 @@
     <string name="hud_rate">%1$s/s</string>
     <string name="hud_energy_cap">/%1$d</string>
     <string name="hud_enemy">Player %1$d</string>
-    <string name="hud_turn">Turn %1$d</string>
+    <string name="hud_turn_player">Player %1$d · Turn %2$d</string>
     <string name="hud_resolve">Resolving</string>
     <string name="hud_turn_time">%1$d s</string>
     <string name="hud_per_meter">/m</string>
@@ -155,6 +179,9 @@
     <string name="aim_splash">%1$s · Splash %2$s m</string>
     <string name="aim_wind_drift">Wind %1$s m</string>
     <string name="aim_next_weapon_cd">Next weapon</string>
+    <string name="aim_weapon_cycle">Weapon %1$d / %2$d · Tap to switch</string>
+    <string name="aim_weapon_cycle_short">Weapon %1$d / %2$d · Tap</string>
+    <string name="aim_weapon_count">Weapon %1$d / %2$d</string>
     <string name="kind_mg">Burst</string>
     <string name="kind_sniper">Piercing</string>
     <string name="kind_mortar">Shell</string>
@@ -173,7 +200,7 @@
     <string name="tech_build">Build</string>
     <string name="tech_requires">Requires %1$s</string>
     <string name="tech_damage">Damage %1$d</string>
-    <string name="tech_range">Range %1$d m</string>
+    <string name="tech_range">Range %1$d\u00A0m</string>
     <string name="tech_salvo" tools:ignore="PluralsCandidate">%1$d × %2$d burst</string>
     <string name="tech_incendiary">%1$d + fire</string>
     <string name="tech_beam">%1$d/s for %2$d s</string>
@@ -185,6 +212,7 @@
     <string name="ctx_door_close">Close door</string>
     <string name="ctx_extinguish">Extinguish</string>
     <string name="end_turn">End turn</string>
+    <string name="end_turn_short">End turn</string>
     <string name="scene_apex">APEX %1$d m</string>
     <string name="result_draw">Draw</string>
     <string name="reason_timeout">Time is up</string>

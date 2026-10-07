@@ -1,6 +1,7 @@
 package de.bollwerk.engine.rules
 
 import de.bollwerk.engine.command.Command
+import de.bollwerk.engine.command.CommandResult
 import de.bollwerk.engine.command.RejectReason
 import de.bollwerk.engine.loop.StateHash
 import de.bollwerk.engine.rules.RuleTables.MINE
@@ -143,6 +144,63 @@ class UndoTest {
         assertTrue(rig.devicesOf(TURBINE).isEmpty())
         rig.ok(rig.undo())
         assertTrue(rig.nodeAt(23f, 27f) < 0)
+    }
+
+    /** Platziert und baut einen Mörser fertig (Werkstatt kostenlos vorhanden, volle Physik + Kampf). */
+    private fun builtMortar(rig: RulesRig): Int {
+        rig.addDevice(RuleTables.WORKSHOP, rig.ground01, 0.15f)
+        rig.run(1)
+        rig.ok(Command.PlaceDevice(rig.tick, 0, RuleTables.MORTAR, rig.bref(rig.beamBetween(rig.n20, rig.apex)), 0.7f, true))
+        val m = rig.devicesOf(RuleTables.MORTAR).single()
+        rig.run(RuleTables.tables.devices[RuleTables.MORTAR].buildTicks + 2)
+        assertEquals(0, rig.state.devices.buildTicks[m])
+        return m
+    }
+
+    @Test
+    fun aBuiltWeaponThatHasNotFiredCanStillBeUndone() {
+        val rig = RulesRig(metal = 1000f, energy = 400f, physics = true)
+        val m = builtMortar(rig)
+        assertEquals(1, rig.player().undoCount)
+        val metal = rig.player().metal
+        rig.ok(rig.undo())
+        assertFalse(rig.state.devices.isAlive(m))
+        assertEquals(metal + 150f, rig.player().metal, 0.5f)
+    }
+
+    @Test
+    fun aWeaponThatHasFiredCanNoLongerBeUndone() {
+        // Exploit: Platzieren → Schießen → Zurück → neu Platzieren umgeht das Nachladen bei voller Erstattung
+        val rig = RulesRig(metal = 1000f, energy = 400f, physics = true)
+        val m = builtMortar(rig)
+        rig.validates(null, rig.undo())
+        val r = rig.send(Command.SetAim(rig.tick, 0, rig.dref(m), 0.9f, 0.8f), Command.Fire(rig.tick, 0, rig.dref(m)))
+        assertEquals(listOf(CommandResult.Accepted, CommandResult.Accepted), r)
+        assertTrue(rig.state.devices.reloadTicksOf[m] > 0, "hat geschossen")
+        assertEquals(0, rig.player().undoCount, "der Geräte-Eintrag fällt mit dem Schuss weg")
+        val metal = rig.player().metal
+        val energy = rig.player().energy
+        rig.rejects(RejectReason.NOTHING_TO_UNDO, rig.undo())
+        assertTrue(rig.state.devices.isAlive(m))
+        assertEquals(metal, rig.player().metal, 0.5f)
+        assertEquals(energy, rig.player().energy, 0.5f)
+        // Abreißen erstattet nur noch deleteRefund
+        rig.ok(Command.DeleteDevice(rig.tick, 0, rig.dref(m)))
+        assertEquals(metal + 150f * SimConfig.DEFAULT.deleteRefund, rig.player().metal, 0.5f)
+    }
+
+    @Test
+    fun firingKeepsOlderUndoEntriesOfTheSamePlayer() {
+        val rig = RulesRig(metal = 1000f, energy = 400f, physics = true)
+        val m = builtMortar(rig)
+        rig.ok(rig.beam(rig.apex, 23f, 27f))
+        assertEquals(2, rig.player().undoCount)
+        rig.send(Command.SetAim(rig.tick, 0, rig.dref(m), 0.9f, 0.8f), Command.Fire(rig.tick, 0, rig.dref(m)))
+        assertEquals(1, rig.player().undoCount)
+        rig.ok(rig.undo()) // der neuere Balken bleibt zurücknehmbar
+        assertTrue(rig.nodeAt(23f, 27f) < 0)
+        assertTrue(rig.state.devices.isAlive(m))
+        rig.rejects(RejectReason.NOTHING_TO_UNDO, rig.undo())
     }
 
     // ---- UNDO_BLOCKED ----

@@ -122,6 +122,8 @@ data class UndoEntry(
  * - Entfernt die erzeugten Objekte in umgekehrter Reihenfolge, **vereinigt Split-Balken wieder** zum
  *   Originalbalken (Daten aus [BeamRecord], neue uid) und setzt umgezogene Geräte auf ihr altes `t` zurück.
  * - Erstattet `undoRefund ×` ([UndoEntry.metal], [UndoEntry.energy]).
+ * - Hat eine Waffe geschossen, ist ihr Geräte-Eintrag weg (`WeaponSystem` → [forgetDevice]): kein voller Rückkauf nach
+ *   dem Schuss, Abreißen erstattet dann nur noch `deleteRefund`.
  */
 class UndoJournal(val capacity: Int) {
     private val entries = ArrayList<UndoEntry>(capacity)
@@ -142,4 +144,21 @@ class UndoJournal(val capacity: Int) {
     operator fun get(i: Int): UndoEntry = entries[i]
 
     fun clear() = entries.clear()
+
+    /**
+     * Entfernt den Geräte-Eintrag ([UndoKind.DEVICE]) mit Ref [deviceRef], falls vorhanden. Aufgerufen, sobald das Gerät
+     * etwas Unumkehrbares getan hat (Waffe hat geschossen); sonst könnte man Platzieren → Schießen → Zurück → neu
+     * Platzieren das Nachladen umgehen. Ältere/neuere Einträge bleiben in ihrer Reihenfolge.
+     * @return `true`, wenn ein Eintrag entfernt wurde
+     */
+    fun forgetDevice(deviceRef: Long): Boolean {
+        for (k in entries.size - 1 downTo 0) {
+            val e = entries[k]
+            if (e.kind == UndoKind.DEVICE && e.ref == deviceRef) {
+                entries.removeAt(k)
+                return true
+            }
+        }
+        return false
+    }
 }

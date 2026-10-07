@@ -57,6 +57,8 @@ data class AimPanelState(
     val doorsOpen: Boolean,
     /** Eigene Waffen insgesamt (Waffenkarte: Tippen wechselt). */
     val weaponCount: Int,
+    /** Position der gewählten Waffe unter den eigenen (1-basiert, „WAFFE 1 / 3"), 0 = keine gewählt. */
+    val weaponNumber: Int = 0,
 )
 
 enum class TechStatus { BUILT, BUILDING, AVAILABLE, LOCKED }
@@ -291,6 +293,7 @@ object HudPresenter {
             doorCount = tools.doorCount,
             doorsOpen = tools.doorCount > 0 && tools.doorsOpen * 2 >= tools.doorCount,
             weaponCount = hud.weapons.size,
+            weaponNumber = hud.weapons.indexOfFirst { it.deviceRef == tools.weaponRef } + 1,
         )
     }
 

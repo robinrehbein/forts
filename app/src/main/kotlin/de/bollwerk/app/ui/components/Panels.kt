@@ -95,7 +95,7 @@ fun SteelPanel(
 /** Versalien-Label mit weiter Laufweite (Abschnittsüberschrift). */
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = BollwerkColors.SteelHi) {
-    Text(text.uppercase(), modifier, style = BollwerkType.Label, color = color)
+    FitText(text.uppercase(), modifier, style = BollwerkType.Label, color = color)
 }
 
 /** Kleiner Chip mit dunklem Rahmen (BREITE 120 M, WIND MITTEL, 400 ⚙ 200 ⚡). */

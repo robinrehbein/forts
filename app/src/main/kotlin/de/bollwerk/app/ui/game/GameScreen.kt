@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -18,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.bollwerk.app.game.GameAudio
 import de.bollwerk.app.game.GameRuntime
 import de.bollwerk.app.game.HudUiState
+import de.bollwerk.app.tutorial.TutorialUiModel
 import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
 import de.bollwerk.app.ui.game.hud.GameHud
@@ -25,6 +28,9 @@ import de.bollwerk.app.ui.game.hud.HudActions
 import de.bollwerk.app.ui.game.hud.LoadingOverlay
 import de.bollwerk.app.ui.game.hud.TechTreeSheet
 import de.bollwerk.app.ui.game.hud.WorldToScreen
+import de.bollwerk.app.ui.game.tutorial.LocalTutorialAnchors
+import de.bollwerk.app.ui.game.tutorial.TutorialAnchors
+import de.bollwerk.app.ui.game.tutorial.TutorialOverlay
 import de.bollwerk.app.ui.handover.HotseatHandoverScreen
 import de.bollwerk.app.ui.settings.SettingsScreen
 import de.bollwerk.app.ui.settings.SettingsViewModel
@@ -44,6 +50,7 @@ fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel, a
     val runtime by viewModel.runtime.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val simRunning by viewModel.simRunning.collectAsStateWithLifecycle()
+    val tutorial by viewModel.tutorial.collectAsStateWithLifecycle()
     BackHandler { viewModel.onSystemBack() }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
         viewModel.onAppBackgrounded()
@@ -69,6 +76,10 @@ fun GameScreen(viewModel: GameViewModel, settingsViewModel: SettingsViewModel, a
         onHandoverReady = viewModel::onHandoverReady,
         settingsOverlay = { SettingsScreen(settingsViewModel, onBack = viewModel::closeSettings) },
         worldToScreen = runtime?.let { worldToScreenOf(it) } ?: NO_SCREEN,
+        tutorial = tutorial,
+        releaseToFire = settings.releaseToFire,
+        onTutorialSkip = viewModel::skipTutorial,
+        onTutorialClose = viewModel::closeTutorial,
         surface = {
             Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) {
                 GameSurface(runtime, state.matchGeneration, settings.reducedEffects, simRunning, Modifier.fillMaxSize())
@@ -99,15 +110,31 @@ fun GameContent(
     onHandoverReady: () -> Unit,
     settingsOverlay: @Composable () -> Unit,
     worldToScreen: WorldToScreen = NO_SCREEN,
+    /** Coach-Mark des Tutorial-Gefechts (null = normale Partie). */
+    tutorial: TutorialUiModel? = null,
+    onTutorialSkip: () -> Unit = {},
+    onTutorialClose: () -> Unit = {},
+    /** Feste Animationsphase des Coach-Marks (Snapshot-Tests); null = läuft mit der Uhr. */
+    tutorialPhase: Float? = null,
+    /** Einstellung „Loslassen = Feuern" (Tutorial-Hinweis zum Schießen). */
+    releaseToFire: Boolean = false,
     surface: @Composable () -> Unit = { Box(Modifier.fillMaxSize().background(Color(Palette.SKY_1))) },
 ) {
+    val anchors = remember { TutorialAnchors() }
     Box(Modifier.fillMaxSize()) {
         surface()
         if (state.loading) {
             LoadingOverlay()
         } else if (!state.boardHidden) {
-            GameHud(hud, toast, leftHanded, actions, worldToScreen = worldToScreen)
-            if (state.techTreeOpen) TechTreeSheet(hud, actions)
+            // Das HUD meldet die Flächen der Toolbar-Einträge, die der Coach-Mark hervorhebt (nur im Tutorial gesetzt)
+            CompositionLocalProvider(LocalTutorialAnchors provides if (tutorial != null) anchors else null) {
+                GameHud(hud, toast, leftHanded, actions, worldToScreen = worldToScreen)
+                if (state.techTreeOpen) TechTreeSheet(hud, actions)
+            }
+            // Coach-Mark über dem HUD; Pause, Einstellungen und Bestätigung liegen darüber, der Techbaum verdeckt ihn
+            if (tutorial != null && !state.techTreeOpen) {
+                TutorialOverlay(tutorial, anchors, worldToScreen, onTutorialSkip, onTutorialClose, phase = tutorialPhase, releaseToFire = releaseToFire)
+            }
         }
         when (val overlay = state.overlay) {
             GameOverlay.None -> Unit

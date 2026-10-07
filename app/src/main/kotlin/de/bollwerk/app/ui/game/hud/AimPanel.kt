@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -55,6 +57,9 @@ import androidx.compose.ui.unit.sp
 import de.bollwerk.app.R
 import de.bollwerk.app.game.AimPanelState
 import de.bollwerk.app.game.HudUiState
+import de.bollwerk.app.ui.components.FitText
+import de.bollwerk.app.ui.game.tutorial.TutorialAnchorIds
+import de.bollwerk.app.ui.game.tutorial.tutorialAnchor
 import de.bollwerk.app.ui.theme.BollwerkColors
 import de.bollwerk.app.ui.theme.Rajdhani
 import kotlin.math.roundToInt
@@ -77,15 +82,20 @@ fun AimToolbar(hud: HudUiState, actions: HudActions, modifier: Modifier = Modifi
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         ModeButton(aimTarget = false, onClick = actions::enterBuildMode, modifier = Modifier.width(64.dp).fillMaxHeight(), enabled = active)
+        if (hud.showEndTurn) EndTurnButton(actions::endTurn, Modifier.width(64.dp).fillMaxHeight(), enabled = active)
         HudPanel(Modifier.weight(1f).fillMaxHeight()) {
-            Row(
-                Modifier.fillMaxHeight().padding(start = 8.dp, end = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                WeaponCard(aim, actions::cycleWeapon, Modifier.weight(1.15f), active)
-                PowerControl(aim, actions::setPower, Modifier.weight(1.25f), active)
-                if (aim.doorCount > 0) DoorToggle(aim.doorsOpen, { actions.setDoorsOpen(!aim.doorsOpen) }, active)
+            BoxWithConstraints(Modifier.fillMaxHeight()) {
+                // Schmale Geräte: Tür-Schalter nur als Icon, die Waffenkarte bekommt mehr Breite als der Kraft-Regler
+                val compact = maxWidth < CompactAimPanelWidth
+                Row(
+                    Modifier.fillMaxHeight().padding(start = 8.dp, end = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 12.dp),
+                ) {
+                    WeaponCard(aim, actions::cycleWeapon, Modifier.weight(if (compact) 1.4f else 1.15f), active)
+                    PowerControl(aim, actions::setPower, Modifier.weight(if (compact) 1f else 1.25f), active)
+                    if (aim.doorCount > 0) DoorToggle(aim.doorsOpen, { actions.setDoorsOpen(!aim.doorsOpen) }, active, compact)
+                }
             }
         }
         Box(Modifier.width(FireButtonSize - 8.dp))
@@ -93,7 +103,7 @@ fun AimToolbar(hud: HudUiState, actions: HudActions, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun WeaponCard(aim: AimPanelState, onCycle: () -> Unit, modifier: Modifier, enabled: Boolean) {
+private fun WeaponCard(aim: AimPanelState, onCycle: () -> Unit, modifier: Modifier, enabled: Boolean) = LtrContent {
     val cd = stringResource(R.string.aim_next_weapon_cd)
     Row(
         modifier.hudClickable(onCycle, cd, enabled = enabled && aim.weaponCount > 0),
@@ -109,21 +119,36 @@ private fun WeaponCard(aim: AimPanelState, onCycle: () -> Unit, modifier: Modifi
         }
         Column(Modifier.weight(1f)) {
             val name = aim.weaponDeviceId?.let { contentNameRes(it) }?.let { stringResource(it) } ?: stringResource(R.string.aim_no_weapon)
-            Text(name.uppercase(), style = WeaponTitle, color = BollwerkColors.Text, maxLines = 1, softWrap = false)
+            FitText(name.uppercase(), style = WeaponTitle, color = BollwerkColors.Text, minFontSize = 14.sp)
             val kind = aim.weaponId?.let { weaponKindRes(it) }?.let { stringResource(it) }
             val sub = when {
                 aim.weaponDeviceId == null -> stringResource(R.string.aim_pick_weapon)
                 kind != null && aim.splashText != null -> stringResource(R.string.aim_splash, kind, aim.splashText)
                 else -> kind ?: ""
             }
-            Text(sub, style = HudType.Small.copy(fontSize = 13.sp), color = HudColors.Label, maxLines = 1, softWrap = false)
+            FitText(
+                sub, style = HudType.Small.copy(fontSize = 13.sp, lineHeight = 15.sp), color = HudColors.Label, minFontSize = 12.sp,
+                fallbacks = listOfNotNull(kind?.takeIf { it != sub }),
+            )
+            // Sichtbarer Hinweis, dass Tippen die Waffe wechselt (Spielplatz: „WAFFE 1 / 3 · ANTIPPEN WECHSELT")
+            if (aim.weaponCount > 1 && aim.weaponNumber > 0) {
+                FitText(
+                    stringResource(R.string.aim_weapon_cycle, aim.weaponNumber, aim.weaponCount).uppercase(),
+                    style = HudType.ChipLabel.copy(letterSpacing = 0.1.em, lineHeight = 12.sp), color = AimBlue,
+                    // Schmale Leiste: kürzere Fassungen statt „…"
+                    fallbacks = listOf(
+                        stringResource(R.string.aim_weapon_cycle_short, aim.weaponNumber, aim.weaponCount).uppercase(),
+                        stringResource(R.string.aim_weapon_count, aim.weaponNumber, aim.weaponCount).uppercase(),
+                    ),
+                )
+            }
         }
     }
 }
 
 /** KRAFT-Regler (Verlauf Rost → Gelb, weißer Knopf); setzt beim Loslassen die Kraft der Waffe. */
 @Composable
-private fun PowerControl(aim: AimPanelState, onSet: (Float) -> Unit, modifier: Modifier, enabled: Boolean) {
+private fun PowerControl(aim: AimPanelState, onSet: (Float) -> Unit, modifier: Modifier, enabled: Boolean) = LtrContent {
     var dragging by remember { mutableStateOf(false) }
     var local by remember { mutableFloatStateOf(aim.power01) }
     val shown = if (dragging) local else aim.power01
@@ -177,25 +202,29 @@ private fun PowerControl(aim: AimPanelState, onSet: (Float) -> Unit, modifier: M
 }
 
 @Composable
-private fun DoorToggle(open: Boolean, onToggle: () -> Unit, enabled: Boolean) {
+private fun DoorToggle(open: Boolean, onToggle: () -> Unit, enabled: Boolean, compact: Boolean = false) = LtrContent {
     val label = stringResource(if (open) R.string.aim_door_open else R.string.aim_door_closed)
     val shape = RoundedCornerShape(7.dp)
     Row(
         Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(shape)
             .background(HudColors.Inset)
             .border(1.dp, if (open) BollwerkColors.Hazard.copy(alpha = 0.7f) else BollwerkColors.SteelHi.copy(alpha = 0.3f), shape)
             .hudClickable(onToggle, label, enabled = enabled)
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
     ) {
-        PartIcon("door", Modifier.size(18.dp))
-        Text(label.uppercase(), style = HudType.ItemLabel.copy(fontSize = 12.sp, letterSpacing = 0.16.em), color = BollwerkColors.Hazard.copy(alpha = if (open) 1f else 0.7f), maxLines = 1)
+        PartIcon("door", Modifier.size(if (compact) 24.dp else 18.dp))
+        if (!compact) Text(label.uppercase(), style = HudType.ItemLabel.copy(fontSize = 12.sp, letterSpacing = 0.16.em), color = BollwerkColors.Hazard.copy(alpha = if (open) 1f else 0.7f), maxLines = 1)
     }
 }
 
 val FireButtonSize = 86.dp
+
+/** Unter dieser Breite der Ziel-Leiste (640/720 dp, Hotseat mit ZUG ENDE) wird sie kompakt. */
+private val CompactAimPanelWidth = 560.dp
 
 /**
  * FEUER-Button (Stil-Bibel §7): rund, Rost-Orange mit hellem Rand, Nachlade-Ring in hazard-Gelb, Restzeit darunter;
@@ -208,6 +237,7 @@ fun FireButton(aim: AimPanelState, onFire: () -> Unit, modifier: Modifier = Modi
     Box(
         modifier
             .size(FireButtonSize)
+            .tutorialAnchor(TutorialAnchorIds.FIRE)
             .clip(RoundedCornerShape(50))
             .blockTouches()
             .hudClickable(onFire, label, enabled = enabled),
@@ -262,7 +292,7 @@ fun AngleCard(aim: AimPanelState, modifier: Modifier = Modifier) {
             Text("${aim.angleDeg}° · ${aim.powerPercent} %", style = AngleValue, color = BollwerkColors.Text, maxLines = 1)
             if (aim.windDriftText != null) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Image(painterResource(R.drawable.ic_end_turn), null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(AimBlue))
+                    Image(painterResource(R.drawable.ic_wind_drift), null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(AimBlue))
                     Text(stringResource(R.string.aim_wind_drift, aim.windDriftText), style = HudType.Small, color = BollwerkColors.Text)
                 }
             }

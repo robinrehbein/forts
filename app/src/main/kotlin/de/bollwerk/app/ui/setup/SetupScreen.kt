@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -51,6 +56,7 @@ import de.bollwerk.app.match.TeamColor
 import de.bollwerk.app.ui.components.BlueprintBackground
 import de.bollwerk.app.ui.components.BodyText
 import de.bollwerk.app.ui.components.ButtonStyle
+import de.bollwerk.app.ui.components.FitText
 import de.bollwerk.app.ui.components.IndustrialButton
 import de.bollwerk.app.ui.components.InfoChip
 import de.bollwerk.app.ui.components.ScreenHeader
@@ -125,76 +131,92 @@ fun SetupContent(
 ) {
     val hotseat = state.mode == GameMode.HOTSEAT
     BlueprintBackground {
-        Row(Modifier.fillMaxSize().screenPadding(24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            // Links: Kopf, Kartenwahl, Zusammenfassung
-            Column(Modifier.weight(1.25f).fillMaxHeight()) {
-                ScreenHeader(
-                    title = stringResource(if (hotseat) R.string.setup_title_hotseat else R.string.setup_title),
-                    subtitle = stringResource(R.string.setup_subtitle),
-                    onBack = onBack,
-                )
-                Spacer(Modifier.height(4.dp))
-                SectionLabel(stringResource(R.string.setup_map))
-                Spacer(Modifier.height(4.dp))
-                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    for (map in MapOption.entries) {
-                        MapCard(map, state.map == map, { onMap(map) }, Modifier.weight(1f).fillMaxHeight())
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                SummaryPanel(state, Modifier.fillMaxWidth(0.9f))
-            }
-            // Rechts: Optionen und Starten
-            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    if (!hotseat) {
-                        LabeledRow(stringResource(R.string.setup_ai_strength), stringResource(state.aiLevel.descRes()))
-                        SegmentedControl(
-                            AiLevel.entries.map { it to stringResource(it.nameRes()) }, state.aiLevel, onAi,
-                        )
-                    } else {
-                        SteelPanel { BodyText(stringResource(R.string.setup_hotseat_hint, MatchConfig.HOTSEAT_TURN_SECONDS)) }
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        SectionLabel(stringResource(R.string.setup_resources), Modifier.weight(1f))
-                        ResourceChip(state.resources)
-                    }
-                    SegmentedControl(
-                        StartResources.entries.map { it to stringResource(it.nameRes()) }, state.resources, onResources,
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // Schmale Geräte (640 dp): Karten untereinander als Zeilen, linke Spalte scrollt (sonst Chips/Zusammenfassung abgeschnitten)
+            val narrow = maxWidth < SETUP_NARROW_WIDTH
+            Row(Modifier.fillMaxSize().screenPadding(24.dp), horizontalArrangement = Arrangement.spacedBy(if (narrow) 16.dp else 24.dp)) {
+                // Links: Kopf, Kartenwahl, Zusammenfassung
+                Column(Modifier.weight(1.25f).fillMaxHeight().then(if (narrow) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
+                    ScreenHeader(
+                        title = stringResource(if (hotseat) R.string.setup_title_hotseat else R.string.setup_title),
+                        subtitle = stringResource(R.string.setup_subtitle),
+                        onBack = onBack,
                     )
-                    if (!hotseat) {
-                        Spacer(Modifier.height(2.dp))
-                        LabeledRow(
-                            stringResource(R.string.setup_team),
-                            stringResource(R.string.setup_team_hint, stringResource(state.team.opponent.nameRes())),
-                        )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            for (team in TeamColor.entries) {
-                                TeamButton(team, state.team == team, { onTeam(team) }, Modifier.weight(1f))
+                    Spacer(Modifier.height(4.dp))
+                    SectionLabel(stringResource(R.string.setup_map))
+                    Spacer(Modifier.height(4.dp))
+                    if (narrow) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            for (map in MapOption.entries) MapRowCard(map, state.map == map, { onMap(map) }, Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            for (map in MapOption.entries) {
+                                MapCard(map, state.map == map, { onMap(map) }, Modifier.weight(1f).fillMaxHeight())
                             }
                         }
                     }
+                    Spacer(Modifier.height(8.dp))
+                    SummaryPanel(state, Modifier.fillMaxWidth(if (narrow) 1f else 0.9f))
                 }
-                IndustrialButton(
-                    stringResource(R.string.setup_start), onStart, Modifier.fillMaxWidth(),
-                    style = ButtonStyle.Primary, textStyle = BollwerkType.MenuButton.copy(fontSize = 22.sp), minHeight = 52.dp,
-                    icon = painterResource(R.drawable.ic_chevron_right),
-                )
+                // Rechts: Optionen und Starten
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (!hotseat) {
+                            LabeledRow(stringResource(R.string.setup_ai_strength), stringResource(state.aiLevel.descRes()))
+                            SegmentedControl(
+                                AiLevel.entries.map { it to stringResource(it.nameRes()) }, state.aiLevel, onAi,
+                            )
+                        } else {
+                            SteelPanel { BodyText(stringResource(R.string.setup_hotseat_hint, MatchConfig.HOTSEAT_TURN_SECONDS)) }
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            SectionLabel(stringResource(R.string.setup_resources), Modifier.weight(1f))
+                            ResourceChip(state.resources)
+                        }
+                        SegmentedControl(
+                            StartResources.entries.map { it to stringResource(it.nameRes()) }, state.resources, onResources,
+                        )
+                        if (!hotseat) {
+                            Spacer(Modifier.height(2.dp))
+                            LabeledRow(
+                                stringResource(R.string.setup_team),
+                                stringResource(R.string.setup_team_hint, stringResource(state.team.opponent.nameRes())),
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                for (team in TeamColor.entries) {
+                                    TeamButton(team, state.team == team, { onTeam(team) }, Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                    IndustrialButton(
+                        stringResource(R.string.setup_start), onStart, Modifier.fillMaxWidth(),
+                        style = ButtonStyle.Primary, textStyle = BollwerkType.MenuButton.copy(fontSize = 22.sp), minHeight = 52.dp,
+                        icon = painterResource(R.drawable.ic_chevron_right),
+                    )
+                }
             }
         }
     }
 }
 
+/** Ab dieser Breite stehen die Kartenkarten nebeneinander (Mockup 2), darunter als Zeilen in einer scrollenden Spalte. */
+private val SETUP_NARROW_WIDTH = 720.dp
+
 @Composable
 private fun LabeledRow(label: String, hint: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel(label)
-        Spacer(Modifier.weight(1f))
-        Text(hint, style = BollwerkType.Body.copy(fontSize = 14.sp), color = BollwerkColors.Muted, maxLines = 1)
+        // Hinweis darf umbrechen bzw. schrumpfen (640 dp: sonst „Baut solide, zielt mit leichter" ohne Ende)
+        FitText(
+            hint, Modifier.weight(1f), style = BollwerkType.Body.copy(fontSize = 14.sp, lineHeight = 15.sp), color = BollwerkColors.Muted,
+            minFontSize = 12.sp, maxLines = 2, textAlign = TextAlign.End,
+        )
     }
 }
 
@@ -229,6 +251,7 @@ private fun TeamButton(team: TeamColor, selected: Boolean, onClick: () -> Unit, 
         hazard = false,
         minHeight = 52.dp,
         textStyle = BollwerkType.Segment,
+        gap = 8.dp,
         leading = {
             Box(
                 Modifier
@@ -276,10 +299,55 @@ private fun MapCard(map: MapOption, selected: Boolean, onClick: () -> Unit, modi
             Text(stringResource(map.nameRes()).uppercase(), style = BollwerkType.Title.copy(fontSize = 26.sp), color = BollwerkColors.Text)
             Text(stringResource(map.descRes()), style = BollwerkType.Body.copy(fontSize = 13.sp, lineHeight = 15.sp), color = BollwerkColors.Muted, maxLines = 2, minLines = 2)
             Spacer(Modifier.height(2.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                InfoChip(stringResource(R.string.map_width_chip, map.widthMeters))
-                InfoChip(stringResource(if (map.strongWind) R.string.map_wind_strong else R.string.map_wind_medium))
+            MapChips(map)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MapChips(map: MapOption) {
+    // Umbrechend: in schmalen Karten rutscht der Wind-Chip in die nächste Zeile, statt abgeschnitten zu werden
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        InfoChip(stringResource(R.string.map_width_chip, map.widthMeters))
+        InfoChip(stringResource(if (map.strongWind) R.string.map_wind_strong else R.string.map_wind_medium))
+    }
+}
+
+/** Kartenwahl als Zeile (schmale Geräte): Vorschau links, Name/Beschreibung/Chips rechts. */
+@Composable
+private fun MapRowCard(map: MapOption, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val shape = RoundedCornerShape(8.dp)
+    val borderColor = if (selected) BollwerkColors.Rust else BollwerkColors.SteelHi.copy(alpha = 0.3f)
+    Row(
+        modifier
+            .shadow(if (selected) 8.dp else 2.dp, shape, ambientColor = BollwerkColors.Rust, spotColor = BollwerkColors.Rust)
+            .clip(shape)
+            .background(BollwerkColors.PanelFill)
+            .border(if (selected) 2.5.dp else 1.dp, borderColor, shape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+    ) {
+        Box(Modifier.width(112.dp).height(104.dp)) {
+            MapThumbnail(map)
+            if (selected) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(BollwerkColors.Rust),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(painterResource(R.drawable.ic_check), null, Modifier.size(16.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
+                }
             }
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(map.nameRes()).uppercase(), style = BollwerkType.Title.copy(fontSize = 22.sp), color = BollwerkColors.Text, maxLines = 1)
+            Text(stringResource(map.descRes()), style = BollwerkType.Body.copy(fontSize = 13.sp, lineHeight = 15.sp), color = BollwerkColors.Muted, maxLines = 2)
+            Spacer(Modifier.height(2.dp))
+            MapChips(map)
         }
     }
 }
@@ -298,15 +366,18 @@ private fun SummaryPanel(state: SetupUiState, modifier: Modifier) {
     SteelPanel(modifier, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
         Column {
             SectionLabel(stringResource(R.string.setup_summary), color = BollwerkColors.SteelHi)
-            Text(
+            // Darf auf zwei Zeilen umbrechen (640 dp: sonst fehlt die Teamfarbe)
+            FitText(
                 text,
                 style = BollwerkType.BodyStrong.copy(
                     fontSize = 20.sp,
+                    lineHeight = 22.sp,
                     letterSpacing = 0.12.em,
                     fontWeight = FontWeight.Bold,
                 ),
                 color = BollwerkColors.Text,
-                maxLines = 1,
+                minFontSize = 14.sp,
+                maxLines = 2,
             )
         }
     }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -44,6 +43,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import de.bollwerk.app.R
 import de.bollwerk.app.game.HudUiState
+import de.bollwerk.app.game.TurnInfo
+import de.bollwerk.app.ui.components.FitText
+import de.bollwerk.engine.sim.TurnPhase
 import de.bollwerk.app.ui.theme.BollwerkColors
 import de.bollwerk.app.ui.theme.Rajdhani
 
@@ -100,8 +102,10 @@ fun ResourceChip(
     rate: String? = null,
     fill: Float? = null,
     flash: Boolean = false,
+    /** Rahmenfarbe als Kennzeichen (Hotseat: Teamfarbe des Spielers am Zug), sonst die Stahlkante. */
+    accent: Color? = null,
 ) {
-    HudPanel(modifier, border = if (flash) BollwerkColors.TeamRed else BollwerkColors.SteelHi.copy(alpha = 0.22f)) {
+    HudPanel(modifier, border = if (flash) BollwerkColors.TeamRed else accent ?: BollwerkColors.SteelHi.copy(alpha = 0.22f)) {
         // Breite = Inhalt; der Füllbalken passt sich an (sonst nähme er die ganze Zeile ein)
         Column(Modifier.width(IntrinsicSize.Max)) {
             Row(
@@ -111,7 +115,7 @@ fun ResourceChip(
             ) {
                 Image(painterResource(icon), null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(iconTint))
                 Column {
-                    Text(label.uppercase(), style = HudType.ChipLabel, color = HudColors.Label, maxLines = 1)
+                    FitText(label.uppercase(), style = HudType.ChipLabel, color = HudColors.Label)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(value, style = HudType.ChipValue, color = BollwerkColors.Text, maxLines = 1)
                         if (unit != null) {
@@ -184,7 +188,7 @@ fun EnemyChip(hud: HudUiState, modifier: Modifier = Modifier) {
                     Modifier.weight(1f),
                     style = HudType.ChipLabel.copy(fontSize = 10.sp, letterSpacing = 0.1.em), color = BollwerkColors.Text, maxLines = 1, softWrap = false,
                 )
-                Text("${hud.enemyPercent} %", style = HudType.Rate.copy(fontSize = 11.sp), color = HudColors.EnemyText, maxLines = 1)
+                Text("${hud.enemyPercent} %", style = HudType.Rate.copy(fontSize = 12.sp), color = HudColors.EnemyText, maxLines = 1)
             }
             Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(HudColors.Inset)) {
                 Box(Modifier.fillMaxWidth(hud.enemyFill).height(4.dp).background(team))
@@ -193,13 +197,13 @@ fun EnemyChip(hud: HudUiState, modifier: Modifier = Modifier) {
     }
 }
 
-/** Quadratischer HUD-Button (Pause, Zug beenden). */
+/** Quadratischer HUD-Button (Pause), 48 dp Touch-Ziel. */
 @Composable
 fun HudSquareButton(icon: Int, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = BollwerkColors.Text) {
-    HudPanel(modifier.size(46.dp)) {
+    HudPanel(modifier.size(HudButtonSize)) {
         Box(
             Modifier
-                .size(46.dp)
+                .size(HudButtonSize)
                 .hudClickable(onClick, contentDescription),
             contentAlignment = Alignment.Center,
         ) {
@@ -208,14 +212,19 @@ fun HudSquareButton(icon: Int, contentDescription: String, onClick: () -> Unit, 
     }
 }
 
-/** Zeile der oberen HUD-Leiste: links Metall/Energie, rechts Zeit/Wind/Pause. */
+/** Mindestgröße der HUD-Buttons (Touch-Ziel). */
+val HudButtonSize = 48.dp
+
+/**
+ * Zeile der oberen HUD-Leiste: links Metall/Energie, rechts Zeit (Hotseat: Spieler und Zug in Teamfarbe), Wind, Pause. Der
+ * Zug-Chip nimmt nur den freien Platz; auf schmalen Geräten wird sein Label enger gesetzt statt die Leiste zu sprengen.
+ * „Zug beenden" sitzt in der unteren Leiste (Daumenzone, siehe [EndTurnButton]).
+ */
 @Composable
 fun HudTopBar(
     hud: HudUiState,
     onPause: () -> Unit,
-    onEndTurn: () -> Unit,
     modifier: Modifier = Modifier,
-    center: @Composable RowScope.() -> Unit = {},
 ) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ResourceChip(
@@ -230,24 +239,42 @@ fun HudTopBar(
             rate = stringResource(R.string.hud_rate, signedRate(hud.energyRate)),
             fill = hud.energyFill,
         )
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center) { center() }
-        val turn = hud.turn
-        if (turn != null) {
-            val label = if (turn.phase == de.bollwerk.engine.sim.TurnPhase.PLAY) stringResource(R.string.hud_turn, turn.turnNumber)
-            else stringResource(R.string.hud_resolve)
-            ResourceChip(
-                R.drawable.ic_clock, if (turn.secondsLeft <= 10) BollwerkColors.Hazard else BollwerkColors.Text, label,
-                stringResource(R.string.hud_turn_time, turn.secondsLeft), Modifier.widthIn(min = 92.dp),
-            )
-        } else {
-            ResourceChip(R.drawable.ic_clock, BollwerkColors.Text, stringResource(R.string.hud_time), hud.timeText, Modifier.widthIn(min = 92.dp))
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        ) {
+            val turn = hud.turn
+            if (turn != null) TurnChip(turn, Modifier.weight(1f, fill = false).widthIn(min = 92.dp))
+            else ResourceChip(R.drawable.ic_clock, BollwerkColors.Text, stringResource(R.string.hud_time), hud.timeText, Modifier.widthIn(min = 92.dp))
+            WindChip(hud, Modifier.widthIn(min = 98.dp))
+            HudSquareButton(R.drawable.ic_pause, stringResource(R.string.game_pause_cd), onPause)
         }
-        WindChip(hud, Modifier.widthIn(min = 98.dp))
-        if (hud.hotseat && hud.turn?.phase == de.bollwerk.engine.sim.TurnPhase.PLAY && hud.canCommand) {
-            HudSquareButton(R.drawable.ic_end_turn, stringResource(R.string.end_turn), onEndTurn, tint = BollwerkColors.Hazard)
-        }
-        HudSquareButton(R.drawable.ic_pause, stringResource(R.string.game_pause_cd), onPause)
     }
+}
+
+/** Teamfarbe eines Spielers (Spieler 1 = Blau, Spieler 2 = Rot). */
+fun teamColorOf(player: Int): Color = if (player == 1) BollwerkColors.TeamRed else BollwerkColors.TeamBlue
+
+/**
+ * Zug-Chip im Hotseat: „SPIELER 1 · ZUG 3" mit Restzeit, Rahmen und Uhr in der Teamfarbe des Spielers am Zug (Mockup 6),
+ * damit nach der Übergabe sofort klar ist, wer dran ist. In der Auflösungsphase „AUFLÖSUNG" ohne Teamfarbe.
+ */
+@Composable
+fun TurnChip(turn: TurnInfo, modifier: Modifier = Modifier) {
+    val play = turn.phase == TurnPhase.PLAY && turn.activePlayer >= 0
+    val team = teamColorOf(turn.activePlayer)
+    val label = if (play) stringResource(R.string.hud_turn_player, turn.activePlayer + 1, turn.turnNumber)
+    else stringResource(R.string.hud_resolve)
+    val iconTint = when {
+        turn.secondsLeft <= 10 -> BollwerkColors.Hazard
+        play -> team
+        else -> BollwerkColors.Text
+    }
+    ResourceChip(
+        R.drawable.ic_clock, iconTint, label, stringResource(R.string.hud_turn_time, turn.secondsLeft), modifier,
+        accent = if (play) team.copy(alpha = 0.85f) else null,
+    )
 }
 
 private fun signedRate(v: Int): String = if (v > 0) "+$v" else "$v"

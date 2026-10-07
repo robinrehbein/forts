@@ -43,6 +43,7 @@ import de.bollwerk.app.game.TechStatus
 import de.bollwerk.app.game.UnlockTile
 import de.bollwerk.app.ui.components.ButtonStyle
 import de.bollwerk.app.ui.components.ChamferShape
+import de.bollwerk.app.ui.components.FitText
 import de.bollwerk.app.ui.components.IndustrialButton
 import de.bollwerk.app.ui.components.consumeTaps
 import de.bollwerk.app.ui.components.drawHazardStripes
@@ -61,7 +62,7 @@ fun TechTreeSheet(hud: HudUiState, actions: HudActions, modifier: Modifier = Mod
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.8f)
+                .fillMaxHeight(0.83f)
                 .clip(shape)
                 .background(Brush.verticalGradient(listOf(Color(0xFF26303B), Color(0xFF1B232C))))
                 .border(1.dp, BollwerkColors.SteelHi.copy(alpha = 0.3f), shape)
@@ -176,7 +177,7 @@ private fun StatusChip(card: TechCard) {
     ) {
         if (card.status == TechStatus.BUILT) Image(painterResource(R.drawable.ic_check), null, Modifier.size(10.dp), colorFilter = ColorFilter.tint(color))
         if (card.status == TechStatus.LOCKED) Image(painterResource(R.drawable.ic_lock), null, Modifier.size(9.dp), colorFilter = ColorFilter.tint(color))
-        Text(text.uppercase(), style = HudType.ChipLabel.copy(fontSize = 9.sp, letterSpacing = 0.14.em), color = color, maxLines = 1)
+        Text(text.uppercase(), style = HudType.ChipLabel.copy(fontSize = 10.sp, letterSpacing = 0.12.em), color = color, maxLines = 1)
     }
 }
 
@@ -212,8 +213,11 @@ private fun UnlockTileView(t: UnlockTile, status: TechStatus, modifier: Modifier
                 DamageStyle.BEAM -> stringResource(R.string.tech_beam, t.damage, t.damageSecondary)
                 DamageStyle.MATERIAL -> null
             }
-            if (line1 != null) Text(line1, style = TileText, color = HudColors.Label, maxLines = 1, softWrap = false, textAlign = TextAlign.Center)
-            if (t.isWeapon) Text(stringResource(R.string.tech_range, t.range), style = TileText, color = HudColors.Label, maxLines = 1, softWrap = false)
+            // 12 sp (Stil-Bibel): schmale Kacheln brechen lieber um („Reichweite / 110 m"), statt abzuschneiden
+            if (line1 != null) FitText(line1, style = TechTileText, color = HudColors.Label, minFontSize = 12.sp, maxLines = 2, textAlign = TextAlign.Center)
+            if (t.isWeapon) {
+                FitText(stringResource(R.string.tech_range, t.range), style = TechTileText, color = HudColors.Label, minFontSize = 12.sp, maxLines = 2, textAlign = TextAlign.Center)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (t.isWeapon) {
                     if (t.shotMetal > 0) MiniCost(R.drawable.ic_gear, BollwerkColors.Text, t.shotMetal.toString())
@@ -227,13 +231,14 @@ private fun UnlockTileView(t: UnlockTile, status: TechStatus, modifier: Modifier
     }
 }
 
-private val TileText = HudType.Small.copy(fontSize = 10.sp, lineHeight = 11.sp)
+/** Fließtext der Freischaltungs-Kacheln: Stil-Bibel §3, nie unter 12. */
+internal val TechTileText = HudType.Small.copy(fontSize = 12.sp, lineHeight = 13.sp)
 
 @Composable
 private fun MiniCost(icon: Int, tint: Color, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(1.dp)) {
         Image(painterResource(icon), null, Modifier.size(10.dp), colorFilter = ColorFilter.tint(tint))
-        Text(text, style = HudType.Small.copy(fontSize = 11.sp, lineHeight = 12.sp), color = BollwerkColors.Text, maxLines = 1)
+        Text(text, style = HudType.Small.copy(fontSize = 12.sp, lineHeight = 13.sp), color = BollwerkColors.Text, maxLines = 1)
     }
 }
 
@@ -281,9 +286,9 @@ private fun TechFooter(card: TechCard, actions: HudActions, canCommand: Boolean)
         ) {
             Image(painterResource(R.drawable.ic_lock), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(HudColors.Label))
             val req = card.requiresDeviceId?.let { contentNameRes(it) }?.let { stringResource(it) } ?: ""
-            Text(
+            FitText(
                 stringResource(R.string.tech_requires, req).uppercase(), Modifier.padding(start = 6.dp),
-                style = HudType.ItemLabel.copy(fontSize = 10.sp, letterSpacing = 0.05.em), color = HudColors.Label, maxLines = 1, softWrap = false,
+                style = HudType.ItemLabel.copy(fontSize = 11.sp, letterSpacing = 0.05.em), color = HudColors.Label,
             )
         }
     }

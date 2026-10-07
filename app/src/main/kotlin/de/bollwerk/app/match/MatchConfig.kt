@@ -48,6 +48,11 @@ data class MatchConfig(
     val resources: StartResources = StartResources.NORMAL,
     val team: TeamColor = TeamColor.BLUE,
     val seed: Long = 1L,
+    /**
+     * Geführtes Tutorial-Gefecht (Menü „Tutorial"): ruhiger Aufbau ([tutorial]), der Gegner ruht, bis der Mörser gefeuert
+     * hat. Die Partie selbst ist ein normales Gefecht gegen die KI; nur die App-Schicht (`MatchSessions`) kennt den Unterschied.
+     */
+    val tutorial: Boolean = false,
 ) {
     /** Spieler-ID des Menschen (im Hotseat: Spieler 1, der als erster zieht). */
     val humanPlayerId: Int get() = if (mode == GameMode.VS_AI) team.playerId else 0
@@ -75,6 +80,18 @@ data class MatchConfig(
     }
 
     companion object {
+        /**
+         * Ruhiges Tutorial-Gefecht: Schlucht, Mensch Blau, KI „Leicht" (ruht bis zum ersten Mörserschuss), großzügige
+         * Startressourcen und ein fester Seed mit schwachem, konstantem Wind (`TutorialMatchTest` sichert ihn ab).
+         */
+        fun tutorial(): MatchConfig = MatchConfig(
+            map = MapOption.SCHLUCHT, mode = GameMode.VS_AI, aiLevel = AiLevel.EASY, resources = StartResources.RICH,
+            team = TeamColor.BLUE, seed = TUTORIAL_SEED, tutorial = true,
+        )
+
+        /** Seed des Tutorial-Gefechts (schwacher, gleichmäßiger Wind). */
+        const val TUTORIAL_SEED = 8L
+
         const val HOTSEAT_TURN_SECONDS = 45
         const val TICKS_PER_SECOND = 60
     }

@@ -5,6 +5,9 @@ internal interface RenderLoop {
     /** Stoppt und wartet begrenzt. Wahr = der Thread ist beendet, falsch = hängt noch (z. B. in einem Treiberaufruf). */
     fun shutdown(): Boolean
 
+    /** Nicht blockierend: wahr, sobald der Thread zu Ende ist (nach einem gescheiterten [shutdown] nur noch abfragen). */
+    fun isFinished(): Boolean
+
     /** Führt [action] auf dem Loop-Thread aus, sobald er zu Ende ist; ist er es schon, sofort auf dem aufrufenden Thread. */
     fun runAfterExit(action: Runnable)
 }
@@ -16,8 +19,9 @@ internal interface RenderLoop {
  * pausiert ist.
  *
  * **Hängender Thread:** Gelingt [RenderLoop.shutdown] nicht in der Frist, wird er als `lingering` gemerkt statt vergessen.
- * Solange er lebt, startet kein zweiter Thread auf derselben Session ([update]), und Aufräumen, das Bitmaps recycelt,
- * läuft über [runWhenStopped] erst, wenn er wirklich zu Ende ist (sonst Use-after-recycle in `drawFrame`).
+ * Er wird danach nur noch nicht blockierend abgefragt ([RenderLoop.isFinished]), nie erneut gejoint. Solange er lebt,
+ * startet kein zweiter Thread auf derselben Session ([update]), und Aufräumen, das Bitmaps recycelt, läuft über
+ * [runWhenStopped] erst, wenn er wirklich zu Ende ist (sonst Use-after-recycle in `drawFrame`).
  */
 internal class RenderLifecycle(
     private val factory: () -> RenderLoop,
@@ -65,9 +69,14 @@ internal class RenderLifecycle(
         if (z == null) action.run() else z.runAfterExit(Runnable { action.run() })
     }
 
+    /**
+     * Ein hängender Thread wird **nicht** erneut gejoint (das würde den UI-Thread bei jedem Lebenszyklus-Ereignis bis zur
+     * Frist blockieren und könnte sich zum ANR aufsummieren); er hat sein Ende schon angemeldet, Aufräumen läuft über
+     * [RenderLoop.runAfterExit]. Hier wird nur abgefragt, ob er inzwischen fertig ist.
+     */
     private fun retireLingering(): Boolean {
         val z = lingering ?: return true
-        if (z.shutdown()) { lingering = null; return true }
+        if (z.isFinished()) { lingering = null; return true }
         return false
     }
 }

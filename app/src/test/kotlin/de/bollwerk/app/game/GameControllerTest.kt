@@ -83,6 +83,49 @@ class GameControllerTest {
         assertFalse(c.hud.value.paused || c.runner.paused)
     }
 
+    /**
+     * Regression: App in den Hintergrund (Renderer abgehängt, dann Pause), zurück (Renderer angehängt). Die Pause wurde
+     * übernommen, während der Runner nichts veröffentlichte; danach muss trotzdem ein Snapshot mit `hud.paused` erscheinen,
+     * sonst zeichnen Renderer und Audio weiter den alten, laufenden Stand (Feuerknistern im Pause-Dialog).
+     */
+    @Test
+    fun pauseTakenOverWhileDetachedIsPublishedAfterReattach() {
+        val c = controller()
+        c.stepOnce()
+        repeat(10) { c.frame() }
+        assertFalse(c.runner.exchange.latest()!!.hud.paused)
+
+        // onAppBackgrounded: erst abhängen, dann pausieren
+        c.setRendererAttached(false)
+        c.setPaused(true)
+        repeat(5) { c.frame() }
+        assertFalse(c.runner.exchange.latest()!!.hud.paused, "abgehängt wird nichts veröffentlicht")
+
+        // onAppForegrounded: Pause-Dialog bleibt offen, nur der Renderer kommt zurück
+        c.setRendererAttached(true)
+        c.frame()
+        assertTrue(c.runner.exchange.latest()!!.hud.paused, "nach dem Anhängen steht die Pause im Snapshot")
+        val seq = c.runner.exchange.latest()!!.seq
+        repeat(5) { c.frame() }
+        assertEquals(seq, c.runner.exchange.latest()!!.seq, "danach ruht die pausierte Sim wieder (kein Snapshot je Schritt)")
+    }
+
+    /** Wie oben, aber mit dem echten Sim-Thread: der wartende Thread wird vom Anhängen geweckt und veröffentlicht die Pause. */
+    @Test
+    fun waitingSimThreadPublishesPauseAfterReattach() {
+        val c = controller()
+        c.start()
+        waitUntil { c.runner.tick > 2 && c.runner.exchange.latest() != null }
+        c.setRendererAttached(false)
+        c.setPaused(true)
+        waitUntil { c.threadState == Thread.State.WAITING }
+        assertFalse(c.runner.exchange.latest()!!.hud.paused)
+        c.setRendererAttached(true)
+        waitUntil { c.runner.exchange.latest()!!.hud.paused }
+        waitUntil { c.threadState == Thread.State.WAITING }
+        c.stop()
+    }
+
     @Test
     fun hudIsSampledAtTenHertz() {
         val c = controller()

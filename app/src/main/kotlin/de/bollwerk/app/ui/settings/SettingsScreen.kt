@@ -22,6 +22,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -51,7 +54,6 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         settings = settings,
         onBack = onBack,
         onSound = viewModel::setSoundVolume,
-        onMusic = viewModel::setMusicVolume,
         onLeftHanded = viewModel::setLeftHanded,
         onReleaseToFire = viewModel::setReleaseToFire,
         onReducedEffects = viewModel::setReducedEffects,
@@ -69,7 +71,6 @@ fun SettingsContent(
     settings: AppSettings?,
     onBack: () -> Unit,
     onSound: (Float) -> Unit,
-    onMusic: (Float) -> Unit,
     onLeftHanded: (Boolean) -> Unit,
     onReleaseToFire: (Boolean) -> Unit,
     onReducedEffects: (Boolean) -> Unit,
@@ -92,7 +93,9 @@ fun SettingsContent(
                         SteelPanel(contentPadding = PaddingValues0) {
                             Column {
                                 VolumeRow(R.drawable.ic_volume, stringResource(R.string.settings_sound), settings.soundVolume, onSound)
-                                VolumeRow(R.drawable.ic_music, stringResource(R.string.settings_music), settings.musicVolume, onMusic)
+                                // Es gibt noch keine Musik: Zeile gesperrt mit Hinweis statt eines Reglers ohne Wirkung. Der gespeicherte
+                                // Wert (`musicVolume`) bleibt erhalten und wird wieder angezeigt, sobald es Musik gibt.
+                                ComingSoonRow(R.drawable.ic_music, stringResource(R.string.settings_music))
                             }
                         }
                         SteelPanel(contentPadding = PaddingValues0) {
@@ -156,6 +159,28 @@ private fun VolumeRow(@DrawableRes icon: Int, title: String, value: Float, onCha
     }
 }
 
+/** Gesperrte Einstellung ohne Wirkung (noch nicht vorhanden): gedimmt, mit „Kommt später"; nicht bedienbar. */
+@Composable
+private fun ComingSoonRow(@DrawableRes icon: Int, title: String) {
+    val soon = stringResource(R.string.settings_music_soon)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .semantics(mergeDescendants = true) { disabled() }
+            .alpha(0.55f)
+            .padding(horizontal = 14.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RowIcon(icon)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = BollwerkType.BodyStrong, color = BollwerkColors.Text)
+            Text(soon.uppercase(), style = BollwerkType.LabelSmall, color = BollwerkColors.Muted)
+        }
+    }
+}
+
 @Composable
 private fun ToggleRow(@DrawableRes icon: Int, title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
@@ -190,6 +215,6 @@ private fun InfoRow(@DrawableRes icon: Int, title: String, value: String) {
 @Composable
 private fun SettingsPreview() {
     BollwerkTheme {
-        SettingsContent(AppSettings(leftHanded = true), {}, {}, {}, {}, {}, {})
+        SettingsContent(AppSettings(leftHanded = true), {}, {}, {}, {}, {})
     }
 }

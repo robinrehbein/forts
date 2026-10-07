@@ -28,9 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -38,6 +38,8 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -81,7 +83,7 @@ fun GameHud(
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            HudTopBar(hud, actions::pause, actions::endTurn, Modifier.align(Alignment.TopCenter))
+            HudTopBar(hud, actions::pause, Modifier.align(Alignment.TopCenter))
             EnemyChip(hud, Modifier.align(Alignment.TopEnd).padding(top = 64.dp))
             if (toast != null) ToastChip(toast, Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
 
@@ -89,6 +91,8 @@ fun GameHud(
             if (aimMode && hud.aim.weaponDeviceId != null) {
                 AngleCard(hud.aim, Modifier.align(Alignment.TopStart).offset(x = w * 0.25f, y = h * 0.27f))
             }
+            // Linkshänder: nur die Anordnung der Leiste wird gespiegelt (Rtl); jeder Eintrag setzt seinen Inhalt selbst wieder
+            // in Leserichtung (LtrContent), sonst stünden Zahlen und Einheiten verkehrt („% 78", „m/⚙ 4")
             val dir = if (leftHanded) LayoutDirection.Rtl else LayoutDirection.Ltr
             CompositionLocalProvider(LocalLayoutDirection provides dir) {
                 Box(Modifier.align(Alignment.BottomCenter)) {
@@ -154,59 +158,102 @@ fun ToastChip(toast: GameToast, modifier: Modifier = Modifier) {
     }
 }
 
-/** Kontextmenü (Langdruck) am Ziel: Reparieren / Abreißen / Tür, gesperrte Einträge mit Grund. Tippen daneben schließt. */
+/**
+ * Kontextmenü (Langdruck) am Ziel: Reparieren / Abreißen / Tür, gesperrte Einträge mit Grund. Tippen daneben schließt.
+ * Das Menü wird gemessen und vollständig in den sicheren Bereich gelegt ([contextMenuPosition]): über dem Ziel, ohne Platz
+ * darüber darunter, an allen vier Rändern geklemmt.
+ */
 @Composable
 fun ContextMenuPopup(menu: ContextMenu, worldToScreen: WorldToScreen, actions: HudActions) {
     val anchor = worldToScreen.toScreen(menu.x, menu.y)
-    val density = LocalDensity.current
-    Box(Modifier.fillMaxSize().consumeTapsThen(actions::dismissContext)) {
-        val pos = if (anchor != null) {
-            with(density) { IntOffset((anchor.x - 90.dp.toPx()).roundToInt().coerceAtLeast(8), (anchor.y - 150.dp.toPx()).roundToInt().coerceAtLeast(8)) }
-        } else null
-        HudPanel(
-            (if (pos != null) Modifier.offset { pos } else Modifier.align(Alignment.Center)).widthIn(min = 180.dp),
-            border = BollwerkColors.Rust.copy(alpha = 0.8f),
-        ) {
-            Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                for (opt in menu.options) {
-                    val (icon, label) = when (opt.action) {
-                        TapAction.REPAIR -> R.drawable.ic_wrench to stringResource(R.string.ctx_repair)
-                        TapAction.DELETE -> R.drawable.ic_delete to stringResource(
-                            if (opt.hint.burning) R.string.ctx_extinguish else R.string.ctx_delete,
-                        )
-                        TapAction.DOOR -> R.drawable.ic_swap_layout to stringResource(
-                            if (opt.hint.doorOpen) R.string.ctx_door_close else R.string.ctx_door_open,
-                        )
+    val safe = WindowInsets.safeDrawing
+    Layout(
+        modifier = Modifier.fillMaxSize().consumeTapsThen(actions::dismissContext),
+        content = { ContextMenuPanel(menu, actions) },
+    ) { measurables, constraints ->
+        val panel = measurables.first().measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val margin = ContextMenuMargin.roundToPx()
+        val bounds = IntRect(
+            left = safe.getLeft(this, layoutDirection) + margin,
+            top = safe.getTop(this) + margin,
+            right = constraints.maxWidth - safe.getRight(this, layoutDirection) - margin,
+            bottom = constraints.maxHeight - safe.getBottom(this) - margin,
+        )
+        val pos = contextMenuPosition(anchor, IntSize(panel.width, panel.height), bounds, ContextMenuGap.roundToPx())
+        layout(constraints.maxWidth, constraints.maxHeight) { panel.place(pos) }
+    }
+}
+
+private val ContextMenuMargin = 8.dp
+private val ContextMenuGap = 20.dp
+
+/**
+ * Lage des Kontextmenüs (Größe [panel]) zum Ziel [anchor] (Bildschirm-Pixel, null = unbekannt → mittig) innerhalb von
+ * [bounds] (sicherer Bereich abzüglich Rand): waagerecht mittig über dem Ziel, senkrecht [gap] darüber; reicht der Platz
+ * darüber nicht, darunter. Danach an allen Rändern in [bounds] geklemmt (ist das Menü größer, gewinnt links/oben).
+ */
+fun contextMenuPosition(anchor: Offset?, panel: IntSize, bounds: IntRect, gap: Int): IntOffset {
+    val maxX = bounds.right - panel.width
+    val maxY = bounds.bottom - panel.height
+    if (anchor == null) {
+        return IntOffset(
+            (bounds.left + (bounds.width - panel.width) / 2).coerceIn(bounds.left, maxOf(bounds.left, maxX)),
+            (bounds.top + (bounds.height - panel.height) / 2).coerceIn(bounds.top, maxOf(bounds.top, maxY)),
+        )
+    }
+    val ax = anchor.x.roundToInt()
+    val ay = anchor.y.roundToInt()
+    val x = (ax - panel.width / 2).coerceIn(bounds.left, maxOf(bounds.left, maxX))
+    val above = ay - gap - panel.height
+    val y = (if (above >= bounds.top) above else ay + gap).coerceIn(bounds.top, maxOf(bounds.top, maxY))
+    return IntOffset(x, y)
+}
+
+@Composable
+private fun ContextMenuPanel(menu: ContextMenu, actions: HudActions) {
+    HudPanel(
+        Modifier.widthIn(min = 180.dp),
+        border = BollwerkColors.Rust.copy(alpha = 0.8f),
+    ) {
+        Column(Modifier.padding(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (opt in menu.options) {
+                val (icon, label) = when (opt.action) {
+                    TapAction.REPAIR -> R.drawable.ic_wrench to stringResource(R.string.ctx_repair)
+                    TapAction.DELETE -> R.drawable.ic_delete to stringResource(
+                        if (opt.hint.burning) R.string.ctx_extinguish else R.string.ctx_delete,
+                    )
+                    TapAction.DOOR -> R.drawable.ic_swap_layout to stringResource(
+                        if (opt.hint.doorOpen) R.string.ctx_door_close else R.string.ctx_door_open,
+                    )
+                }
+                val shape = RoundedCornerShape(6.dp)
+                Row(
+                    Modifier
+                        .clip(shape)
+                        .background(Color(0xFF2C3540))
+                        .hudClickable({ actions.chooseContext(opt.action) }, label, enabled = opt.enabled)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .widthIn(min = 160.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    val c = if (opt.enabled) BollwerkColors.Text else HudColors.Label.copy(alpha = 0.6f)
+                    Image(painterResource(icon), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(c))
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(label.uppercase(), style = HudType.ItemLabel.copy(fontSize = 13.sp, letterSpacing = 0.12.em), color = c)
+                        val reason = opt.reason
+                        if (!opt.enabled && reason != null) {
+                            Text(stringResource(rejectReasonRes(reason)), style = HudType.Small, color = Color(0xFFE87A6E))
+                        }
                     }
-                    val shape = RoundedCornerShape(6.dp)
-                    Row(
-                        Modifier
-                            .clip(shape)
-                            .background(Color(0xFF2C3540))
-                            .hudClickable({ actions.chooseContext(opt.action) }, label, enabled = opt.enabled)
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
-                            .widthIn(min = 160.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        val c = if (opt.enabled) BollwerkColors.Text else HudColors.Label.copy(alpha = 0.6f)
-                        Image(painterResource(icon), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(c))
-                        Column(Modifier.weight(1f, fill = false)) {
-                            Text(label.uppercase(), style = HudType.ItemLabel.copy(fontSize = 13.sp, letterSpacing = 0.12.em), color = c)
-                            val reason = opt.reason
-                            if (!opt.enabled && reason != null) {
-                                Text(stringResource(rejectReasonRes(reason)), style = HudType.Small.copy(fontSize = 11.sp), color = Color(0xFFE87A6E))
-                            }
-                        }
-                        val amount = when (opt.action) {
-                            TapAction.REPAIR -> opt.hint.costMetal.takeIf { it >= 0.5f }?.let { "−${it.roundToInt()}" }
-                            TapAction.DELETE -> opt.hint.refundMetal.takeIf { it >= 0.5f }?.let { "+${it.roundToInt()}" }
-                            TapAction.DOOR -> null
-                        }
-                        if (amount != null) {
-                            Text(amount, style = HudType.Small, color = if (opt.action == TapAction.DELETE) BollwerkColors.Ok else BollwerkColors.Text)
-                            Image(painterResource(R.drawable.ic_gear), null, Modifier.size(12.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
-                        }
+                    val amount = when (opt.action) {
+                        TapAction.REPAIR -> opt.hint.costMetal.takeIf { it >= 0.5f }?.let { "−${it.roundToInt()}" }
+                        TapAction.DELETE -> opt.hint.refundMetal.takeIf { it >= 0.5f }?.let { "+${it.roundToInt()}" }
+                        TapAction.DOOR -> null
+                    }
+                    if (amount != null) {
+                        Text(amount, style = HudType.Small, color = if (opt.action == TapAction.DELETE) BollwerkColors.Ok else BollwerkColors.Text)
+                        Image(painterResource(R.drawable.ic_gear), null, Modifier.size(12.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
                     }
                 }
             }

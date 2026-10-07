@@ -86,6 +86,8 @@ class WeaponSystem(private val world: CombatWorld) : SimSystem {
         }
         pl.metal -= wp.shotMetal
         pl.energy -= wp.shotEnergy
+        // geschossen ist unumkehrbar: kein "Zurück" mit voller Erstattung mehr (sonst Nachladen per Neu-Platzieren umgehbar)
+        pl.undoJournal.forgetDevice(d.ref(i))
 
         autoOpenDoor(state, ctx, owner, geo[DeviceGeometry.PIVOT_X], geo[DeviceGeometry.PIVOT_Y])
         d.reloadTicksOf[i] = wp.reloadTicks

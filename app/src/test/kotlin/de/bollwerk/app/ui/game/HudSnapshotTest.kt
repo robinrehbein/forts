@@ -14,6 +14,13 @@ import de.bollwerk.app.match.GameMode
 import de.bollwerk.app.match.MatchConfig
 import de.bollwerk.app.ui.game.hud.HudActions
 import de.bollwerk.app.ui.game.hud.PreviewBattlefield
+import de.bollwerk.app.ui.game.hud.WorldToScreen
+import de.bollwerk.app.ui.layout.snapshotWithoutClipping
+import androidx.compose.ui.geometry.Offset
+import de.bollwerk.engine.tools.ContextMenu
+import de.bollwerk.engine.tools.ContextOption
+import de.bollwerk.engine.tools.TapAction
+import de.bollwerk.engine.tools.TargetHint
 import de.bollwerk.app.ui.theme.BollwerkTheme
 import de.bollwerk.engine.command.RejectReason
 import de.bollwerk.engine.sim.TurnPhase
@@ -54,12 +61,18 @@ class HudSnapshotTest {
         }
     }
 
-    private fun content(state: GameUiState, hud: de.bollwerk.app.game.HudUiState, toast: GameToast? = null) = paparazzi.snapshot {
+    private fun content(
+        state: GameUiState,
+        hud: de.bollwerk.app.game.HudUiState,
+        toast: GameToast? = null,
+        leftHanded: Boolean = false,
+        worldToScreen: WorldToScreen = WorldToScreen { _, _ -> null },
+    ) = paparazzi.snapshotWithoutClipping {
         Frame {
             GameContent(
-                state = state, hud = hud, toast = toast, leftHanded = false, actions = HudActions.NONE,
+                state = state, hud = hud, toast = toast, leftHanded = leftHanded, actions = HudActions.NONE,
                 onResume = {}, onRequestConfirm = {}, onOpenSettings = {}, onConfirm = {}, onCancelConfirm = {}, onHandoverReady = {},
-                settingsOverlay = {}, surface = {},
+                settingsOverlay = {}, worldToScreen = worldToScreen, surface = {},
             )
         }
     }
@@ -74,6 +87,36 @@ class HudSnapshotTest {
     fun aimMode() {
         val hud = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.aimTools(), catalog, hotseat = false)
         content(GameUiState(MatchConfig(), loading = false), hud)
+    }
+
+    /** Linkshänder: Leiste gespiegelt (ZIELEN links), Inhalte bleiben lesbar („4 ⚙/m", nicht „m/⚙ 4"). */
+    @Test
+    fun buildModeLeftHanded() {
+        val hud = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.buildTools(), catalog, hotseat = false)
+        content(GameUiState(MatchConfig(), loading = false), hud, leftHanded = true)
+    }
+
+    /** Linkshänder im Zielmodus: FEUER links, Kraft „78 %" (nicht „% 78"), KRAFT-Zeile in Leserichtung. */
+    @Test
+    fun aimModeLeftHanded() {
+        val hud = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.aimTools(), catalog, hotseat = false)
+        content(GameUiState(MatchConfig(), loading = false), hud, leftHanded = true)
+    }
+
+    /** Langdruck auf die rote Festung am rechten Rand: das Menü bleibt samt Erstattung vollständig im Bild. */
+    @Test
+    fun contextMenuAtRightEdge() {
+        val hint = TargetHint(TapAction.DELETE, isDevice = false, ref = 1L, valid = true, reason = null, x = 0f, y = 0f, refundMetal = 12f)
+        val menu = ContextMenu(
+            isDevice = false, targetRef = 1L, x = 0f, y = 0f,
+            options = listOf(
+                ContextOption(TapAction.REPAIR, enabled = false, reason = RejectReason.NOT_ENOUGH_METAL, hint = hint.copy(action = TapAction.REPAIR)),
+                ContextOption(TapAction.DELETE, enabled = true, reason = null, hint = hint),
+            ),
+        )
+        val hud = HudPresenter.present(HudFixtures.mockupHud(), HudFixtures.buildTools(), catalog, hotseat = false).copy(contextMenu = menu)
+        // Anker bei x ≈ 760 dp (Pixel bei xhdpi), knapp unter der oberen Leiste: kein Platz darüber → Menü darunter
+        content(GameUiState(MatchConfig(), loading = false), hud, worldToScreen = WorldToScreen { _, _ -> Offset(1520f, 160f) })
     }
 
     @Test

@@ -33,6 +33,24 @@ data class SetupPrefs(
     val team: TeamColor = TeamColor.BLUE,
 )
 
+/**
+ * Fortschritt des Tutorials (DataStore): [offered] = der Erststart-Hinweis wurde schon gezeigt und beantwortet,
+ * [completed] = alle drei Schritte wurden gespielt. Überspringen setzt nur [offered].
+ */
+data class TutorialProgress(
+    val offered: Boolean = false,
+    val completed: Boolean = false,
+) {
+    /** Erststart: Das Tutorial wird genau einmal angeboten (nie, wenn es schon gespielt oder abgelehnt wurde). */
+    val shouldOffer: Boolean get() = !offered && !completed
+
+    /** Stand nach Ende des Tutorials ([completed] = alle Schritte gespielt, sonst übersprungen). */
+    fun afterFinish(completed: Boolean): TutorialProgress = copy(offered = true, completed = this.completed || completed)
+
+    /** Das Angebot wurde beantwortet (Starten oder Später). */
+    fun afterOffer(): TutorialProgress = copy(offered = true)
+}
+
 /** DataStore-Schlüssel und die reine Abbildung Preferences ⇄ Datenklassen (ohne Android testbar). */
 object PrefKeys {
     val SOUND = floatPreferencesKey("sound_volume")
@@ -41,6 +59,9 @@ object PrefKeys {
     val RELEASE_TO_FIRE = booleanPreferencesKey("release_to_fire")
     val REDUCED_FX = booleanPreferencesKey("reduced_effects")
     val HAPTICS = booleanPreferencesKey("haptics")
+
+    val TUTORIAL_OFFERED = booleanPreferencesKey("tutorial_offered")
+    val TUTORIAL_COMPLETED = booleanPreferencesKey("tutorial_completed")
 
     val SETUP_MAP = stringPreferencesKey("setup_map")
     val SETUP_AI = stringPreferencesKey("setup_ai")
@@ -89,4 +110,15 @@ fun androidx.datastore.preferences.core.MutablePreferences.write(prefs: SetupPre
     this[PrefKeys.SETUP_AI] = prefs.aiLevel.name
     this[PrefKeys.SETUP_RESOURCES] = prefs.resources.name
     this[PrefKeys.SETUP_TEAM] = prefs.team.name
+}
+
+fun Preferences.toTutorialProgress(): TutorialProgress {
+    val completed = this[PrefKeys.TUTORIAL_COMPLETED] ?: false
+    // Ein gespieltes Tutorial gilt immer als angeboten (auch wenn nur der Abschluss-Schlüssel geschrieben wurde)
+    return TutorialProgress(offered = completed || (this[PrefKeys.TUTORIAL_OFFERED] ?: false), completed = completed)
+}
+
+fun androidx.datastore.preferences.core.MutablePreferences.write(progress: TutorialProgress) {
+    this[PrefKeys.TUTORIAL_OFFERED] = progress.offered || progress.completed
+    this[PrefKeys.TUTORIAL_COMPLETED] = progress.completed
 }

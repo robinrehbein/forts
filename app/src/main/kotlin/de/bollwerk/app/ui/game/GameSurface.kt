@@ -56,10 +56,19 @@ fun GameSurface(
                 val b = SurfaceBinding.of(view)
                 b.bind(runtime, base.copy(reducedMotion = reducedEffects))
                 view.setPaused(!simRunning)
+                view.keepScreenOnWhile(simRunning)
             },
             onRelease = { view -> SurfaceBinding.of(view).bind(null, null) },
         )
     }
+}
+
+/**
+ * Bildschirm wach halten nur, solange die Sim läuft. Als View-Flag (statt `FLAG_KEEP_SCREEN_ON` am Fenster) endet es von
+ * selbst, sobald die Spielfläche das Fenster verlässt (Menüs, Ergebnis); Pause, Einstellungen und wartende Übergabe geben es frei.
+ */
+internal fun View.keepScreenOnWhile(simRunning: Boolean) {
+    if (keepScreenOn != simRunning) keepScreenOn = simRunning
 }
 
 /** HUD-Leiste oben (Chips): Lupe und Chips der Spielfläche weichen ihr aus. */

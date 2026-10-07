@@ -14,6 +14,10 @@ import de.bollwerk.app.match.MatchResult
 import de.bollwerk.app.nav.Navigator
 import de.bollwerk.app.nav.Screen
 import de.bollwerk.app.settings.AppSettings
+import de.bollwerk.app.tutorial.TutorialCoach
+import de.bollwerk.app.tutorial.TutorialDriver
+import de.bollwerk.app.tutorial.TutorialEffects
+import de.bollwerk.app.tutorial.TutorialUiModel
 import de.bollwerk.app.ui.game.hud.HudActions
 import de.bollwerk.engine.command.RejectReason
 import de.bollwerk.engine.sim.SimConfig
@@ -91,6 +95,11 @@ data class GameUiState(
     val boardHidden: Boolean get() = overlay is GameOverlay.Handover
 }
 
+/** Ablage des Tutorial-Ergebnisses (DataStore): [completed] = alle drei Schritte gespielt, sonst übersprungen. */
+fun interface TutorialStore {
+    suspend fun finished(completed: Boolean)
+}
+
 /** Legt eine Partie an (teuer: Content, Einschwingen; läuft auf dem [GameViewModel.workDispatcher]). */
 fun interface GameRuntimeFactory {
     fun create(config: MatchConfig): GameRuntime
@@ -117,6 +126,7 @@ class GameViewModel(
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val decimalSeparator: Char = ',',
     private val entryId: Long = navigator.current.id,
+    private val tutorialStore: TutorialStore? = null,
 ) : ViewModel(), HudActions {
     private val _state = MutableStateFlow(GameUiState(config, loading = runtimeFactory != null))
     val state: StateFlow<GameUiState> = _state.asStateFlow()
@@ -128,6 +138,12 @@ class GameViewModel(
     private val _hud = MutableStateFlow(HudUiState(hotseat = config.mode == GameMode.HOTSEAT))
     /** Fertig aufbereitete HUD-Werte für Compose. */
     val hud: StateFlow<HudUiState> = _hud.asStateFlow()
+
+    private val _tutorial = MutableStateFlow<TutorialUiModel?>(null)
+    /** Coach-Mark des Tutorial-Gefechts (null in normalen Partien und solange die Partie angelegt wird). */
+    val tutorial: StateFlow<TutorialUiModel?> = _tutorial.asStateFlow()
+
+    private var coach: TutorialCoach? = null
 
     private val _toast = MutableStateFlow<GameToast?>(null)
     val toast: StateFlow<GameToast?> = _toast.asStateFlow()
@@ -186,9 +202,17 @@ class GameViewModel(
         val c = rt.controller
         val hotseat = c.session.hotseat
         val jobs = ArrayList<Job>(runtimeJobs)
+        val coach = rt.session.tutorial?.let { createCoach(rt, it) }
+        this.coach = coach
+        if (coach != null) {
+            jobs += viewModelScope.launch { coach.model.collect { _tutorial.value = it } }
+            jobs += viewModelScope.launch { rt.session.tutorial?.signals?.collect { coach.onSignal(it) } }
+        }
         jobs += viewModelScope.launch {
             combine(c.hud, c.toolState) { h, t -> h to t }.collect { (h, t) ->
-                _hud.value = HudPresenter.present(h, t, c.session.catalog, hotseat, decimalSeparator)
+                val ui = HudPresenter.present(h, t, c.session.catalog, hotseat, decimalSeparator)
+                _hud.value = ui
+                coach?.onHud(ui, h.weapons)
                 onHud(h)
             }
         }
@@ -202,9 +226,23 @@ class GameViewModel(
         runtimeJobs = jobs
     }
 
+    private fun createCoach(rt: GameRuntime, driver: TutorialDriver) = TutorialCoach(
+        ids = driver.ids,
+        targets = driver.targets,
+        effects = object : TutorialEffects {
+            override fun selectWeapon(ref: Long) = rt.controller.selectWeapon(ref)
+            override fun openGates() = driver.openGates()
+            override fun finished(completed: Boolean) {
+                viewModelScope.launch { tutorialStore?.finished(completed) }
+            }
+        },
+    )
+
     private fun stopRuntime() {
         runtimeJobs.forEach { it.cancel() }
         runtimeJobs = emptyList()
+        coach = null
+        _tutorial.value = null
         _runtime.value?.stop()
         _runtime.value = null
     }
@@ -287,7 +325,7 @@ class GameViewModel(
     fun onAppBackgrounded() {
         backgrounded = true
         // Renderer abgehängt: die Sim sammelt keine Fx/Ergebnisse für einen Leser an, der nicht zeichnet
-        _runtime.value?.controller?.runner?.setRendererAttached(false)
+        _runtime.value?.controller?.setRendererAttached(false)
         when (val overlay = _state.value.overlay) {
             GameOverlay.None -> pause()
             is GameOverlay.Handover -> if (overlay.state.isCounting) setHandover(overlay.state.copy(secondsLeft = null))
@@ -299,7 +337,7 @@ class GameViewModel(
     /** Zurück im Vordergrund: die Sim bleibt angehalten, solange ein Overlay (Pause) offen ist. */
     fun onAppForegrounded() {
         backgrounded = false
-        _runtime.value?.controller?.runner?.setRendererAttached(true)
+        _runtime.value?.controller?.setRendererAttached(true)
         syncPause()
     }
 
@@ -401,6 +439,12 @@ class GameViewModel(
         if (c != null) c.chooseContext(action) else controller?.dismissContext()
     }
     override fun dismissContext() { controller?.dismissContext() }
+
+    /** „Überspringen" im Coach-Mark: das Tutorial endet, die Partie läuft als normales Gefecht weiter. */
+    fun skipTutorial() { coach?.skip() }
+
+    /** Abschlusskarte bestätigen. */
+    fun closeTutorial() { coach?.close() }
 
     override fun openTechTree() = _state.update { if (it.overlay == GameOverlay.None) it.copy(techTreeOpen = true) else it }
     override fun closeTechTree() = _state.update { it.copy(techTreeOpen = false) }

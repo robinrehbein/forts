@@ -44,6 +44,8 @@ object RulesValidator : CommandValidator {
         val id = beams.resolve(cmd.beamRef)
         if (id < 0) return RejectReason.STALE_TARGET
         if (beams.owner(id) != cmd.playerId) return RejectReason.NOT_OWNER
+        // Trümmer gehören niemandem mehr: kein Abriss (und damit keine Erstattung) für Wrackteile
+        if ((beams.flags(id) and BeamFlags.DEBRIS) != 0) return RejectReason.INVALID_TARGET
         if (carriesReactor(view, id)) return RejectReason.REACTOR_PROTECTED
         return null
     }
@@ -64,6 +66,8 @@ object RulesValidator : CommandValidator {
         if (id < 0) return RejectReason.STALE_TARGET
         if (devices.owner(id) != cmd.playerId) return RejectReason.NOT_OWNER
         if (view.tables.devices[devices.type(id)].role == DeviceRole.REACTOR) return RejectReason.REACTOR_PROTECTED
+        // Gerät auf Trümmern (oder totem Balken): kein Abriss mit Erstattung
+        if (!Economy.onLiveBeam(view, id)) return RejectReason.INVALID_TARGET
         return null
     }
 

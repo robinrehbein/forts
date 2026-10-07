@@ -21,6 +21,7 @@ import java.util.Locale
 import de.bollwerk.app.nav.Screen
 import de.bollwerk.app.ui.game.GameScreen
 import de.bollwerk.app.ui.game.GameViewModel
+import de.bollwerk.app.ui.game.TutorialStore
 import de.bollwerk.app.ui.menu.MainMenuScreen
 import de.bollwerk.app.ui.menu.MainMenuViewModel
 import de.bollwerk.app.ui.result.ResultScreen
@@ -80,6 +81,7 @@ fun AppRoot(app: AppViewModel) {
                                     settings = graph.settings.settings,
                                     decimalSeparator = separator,
                                     entryId = entry.id,
+                                    tutorialStore = TutorialStore { completed -> graph.settings.updateTutorial { it.afterFinish(completed) } },
                                 )
                             }
                         },

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.bollwerk.app.ui.theme.BollwerkColors
 import de.bollwerk.app.ui.theme.BollwerkType
 
@@ -160,6 +160,8 @@ fun IndustrialButton(
     cut: Dp = 10.dp,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    /** Abstand zwischen Icon/[leading], Text und [trailing]. */
+    gap: Dp = 12.dp,
 ) {
     val shape = remember(cut) { ChamferShape(cut) }
     val interaction = remember { MutableInteractionSource() }
@@ -183,18 +185,20 @@ fun IndustrialButton(
         Row(
             Modifier.offset(y = if (pressed) 1.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
         ) {
             leading?.invoke()
             if (icon != null) {
                 Image(icon, null, Modifier.size(24.dp), colorFilter = ColorFilter.tint(BollwerkColors.Text))
             }
-            Text(
+            // Schmale Bildschirme (640 dp): Laufweite/Größe passen sich an, statt das Label abzuschneiden
+            FitText(
                 text = text.uppercase(),
+                modifier = Modifier.weight(1f, fill = false),
                 style = textStyle,
                 color = BollwerkColors.Text.copy(alpha = if (enabled) 1f else 0.5f),
                 textAlign = TextAlign.Center,
-                maxLines = 1,
+                minFontSize = 12.sp,
             )
             trailing?.invoke()
         }

@@ -42,6 +42,15 @@ class SfxPlayer(
     private var crackleSeed = 0x2545F491
     private var fireLastMs = Long.MIN_VALUE
 
+    /**
+     * Zwischen [pause] und [resume]: keine neuen Stimmen, keine Feuerschleife. `SoundPool.autoPause` hält nur laufende Stimmen
+     * an; ohne diese Sperre wären danach gestartete (z. B. Knackser aus einem veralteten Snapshot) sofort hörbar.
+     */
+    private var suspended = false
+
+    /** Angehalten ([pause] ohne [resume])? */
+    val isSuspended: Boolean @Synchronized get() = suspended
+
     /** Aktive (noch nicht abgelaufene) Stimmen eines Sounds; für Tests/Diagnose. */
     @Synchronized
     fun activeVoices(id: SfxId): Int {
@@ -54,7 +63,7 @@ class SfxPlayer(
 
     @Synchronized
     override fun play(id: SfxId, volume: Float, pan: Float, pitch: Float) {
-        if (id.loop) return
+        if (id.loop || suspended) return
         val gain = settings.effectGain * HEADROOM * volume.coerceIn(0f, 1f)
         if (gain <= 0.001f) return
         val now = clock.nowMs()
@@ -95,6 +104,7 @@ class SfxPlayer(
 
     @Synchronized
     override fun update() {
+        if (suspended) return
         val now = clock.nowMs()
         val dt = if (fireLastMs == Long.MIN_VALUE) 0f else ((now - fireLastMs) / 1000f).coerceIn(0f, 1f)
         fireLastMs = now
@@ -130,13 +140,24 @@ class SfxPlayer(
         return (crackleSeed ushr 8) / 16777216f
     }
 
-    /** Hält alle Stimmen an (Activity `onPause`); Feuerzustand bleibt erhalten. */
+    /**
+     * Hält alle Stimmen an (Activity `onPause`, Pause-Dialog) und sperrt neue bis [resume]; die Feuerschleife wird gestoppt.
+     * Feuerzustand (Zahl brennender Balken, Pegel) bleibt erhalten, nach [resume] setzt [update] die Schleife neu auf.
+     */
     @Synchronized
-    fun pause() = backend.pause()
+    fun pause() {
+        suspended = true
+        backend.pause()
+        if (fireHandle != 0) { backend.stop(fireHandle); fireHandle = 0 }
+    }
 
-    /** Setzt nach [pause] fort (Activity `onResume`). */
+    /** Setzt nach [pause] fort (Activity `onResume`, Spiel läuft wieder). */
     @Synchronized
-    fun resume() = backend.resume()
+    fun resume() {
+        suspended = false
+        fireLastMs = Long.MIN_VALUE // die Pausenzeit zählt nicht als Frame-Zeit
+        backend.resume()
+    }
 
     /** Stoppt alle Stimmen (z. B. beim Verlassen der Partie). */
     @Synchronized
